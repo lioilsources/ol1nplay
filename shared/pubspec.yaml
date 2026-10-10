@@ -1,0 +1,23 @@
+name: ol1nplay_shared
+description: "Ol1nPlay shared Dart package: wire protocol models, engine WebSocket client, discovery, theme and widgets used by the desktop app and the mobile remote."
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.44.0"
+
+dependencies:
+  collection: ^1.19.1
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  multicast_dns: ^0.3.3+1
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

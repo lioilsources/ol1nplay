@@ -1,0 +1,18 @@
+# Go
+engine/bin/
+engine/third_party/asiosdk/
+engine/ffmpeg-win/
+*.exe
+*.dll
+*.test
+# Flutter
+**/.dart_tool/
+**/build/
+**/.flutter-plugins*
+**/.packages
+**/pubspec_overrides.yaml
+**/ephemeral/
+**/*.iml
+.idea/
+.vscode/
+.DS_Store

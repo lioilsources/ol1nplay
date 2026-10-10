@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: engine/go.mod
+      - name: FFmpeg dev libraries + MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libavformat-dev libavcodec-dev libavutil-dev pkg-config gcc-mingw-w64-x86-64 ffmpeg
+      - name: Fixtures
+        run: cd engine/testdata && ./gen.sh
+      - name: Lint (gofmt + vet native + vet GOOS=windows)
+        run: make lint
+      - name: Test
+        run: make test-race
+      - name: Cross-vet Windows-only packages
+        run: |
+          cd engine && CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
+            go build ./asio ./wasapi ./sysmode ./mediakeys ./winrt ./sink/... ./ringbuf ./library/... ./protocol
+      # The full .exe needs the Windows FFmpeg SDK (engine/ffmpeg-win); see BUILD.md.
+
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: cd shared && flutter pub get && flutter analyze && flutter test
+      - run: cd app_desktop && flutter pub get && flutter analyze && flutter test
+      - run: cd app_remote && flutter pub get && flutter analyze && flutter test

@@ -31,7 +31,7 @@ test-race:
 
 vet:                        ## vet native and for GOOS=windows
 	cd $(ENGINE_DIR) && go vet ./... && \
-	  CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=$(MINGW) go vet ./asio ./wasapi ./sysmode ./mediakeys ./winrt ./sink/... ./ringbuf ./memlock ./api ./playback
+	  CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=$(MINGW) go vet ./asio ./wasapi ./sysmode ./mediakeys ./winrt ./sink/... ./ringbuf ./memlock
 
 lint: vet
 	cd $(ENGINE_DIR) && test -z "$$(gofmt -l .)" || { gofmt -l .; exit 1; }

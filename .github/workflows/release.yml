@@ -67,7 +67,13 @@ jobs:
           # MinGW builds import the pthread runtime.
           cp "$(dirname "$(command -v gcc)")/libwinpthread-1.dll" "$out/engine/"
           cp engine/ffmpeg-win/LICENSE.txt "$out/engine/FFMPEG-LICENSE.txt"
-          cp LICENSES.md README.md "$out/"
+          # The UI and its plugins import the Visual C++ runtime; shipping it
+          # app-local means nobody has to install the redistributable.
+          crt="$(find "/c/Program Files/Microsoft Visual Studio" -type d -path '*/Redist/MSVC/*/x64/Microsoft.VC*.CRT' 2>/dev/null | sort | tail -1)"
+          [ -n "$crt" ] || crt=/c/Windows/System32
+          echo "VC runtime from: $crt"
+          cp "$crt/msvcp140.dll" "$crt/vcruntime140.dll" "$crt/vcruntime140_1.dll" "$out/"
+          cp LICENSES.md README.md CHANGELOG.md tools/install.ps1 "$out/"
 
       # Runs the packaged engine with nothing but Windows on the PATH, so a
       # DLL missing from the zip fails here and not on somebody's machine.

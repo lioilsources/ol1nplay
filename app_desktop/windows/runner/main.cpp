@@ -7,11 +7,15 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  // Attach to console when present (e.g., 'flutter run') or create a
-  // new console when running with a debugger.
+  // Debug builds only: attach to the console when present (e.g., 'flutter
+  // run') or create one under a debugger. A release build must never share
+  // its parent's console — started from PowerShell, closing that window
+  // would send CTRL_CLOSE_EVENT here and stop the music.
+#ifdef _DEBUG
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
     CreateAndAttachConsole();
   }
+#endif
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.

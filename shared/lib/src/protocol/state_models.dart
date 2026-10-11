@@ -645,6 +645,7 @@ class EngineState {
     this.nextTrack,
     this.preloaded = false,
     this.ramBytes = 0,
+    this.ramLocked = false,
     this.gain = '0 dB',
     this.sysmode = Sysmode.empty,
     this.sleep,
@@ -692,6 +693,9 @@ class EngineState {
   /// Bytes of PCM resident.
   final int ramBytes;
 
+  /// The resident PCM is pinned in physical RAM ([Settings.lockMemory]).
+  final bool ramLocked;
+
   /// Always "0 dB" – there is no volume.
   final String gain;
   final Sysmode sysmode;
@@ -731,6 +735,7 @@ class EngineState {
       nextTrack: n == null ? null : Track.fromJson(n),
       preloaded: boolean(j, 'preloaded'),
       ramBytes: integer(j, 'ramBytes'),
+      ramLocked: boolean(j, 'ramLocked'),
       gain: str(j, 'gain', '0 dB'),
       sysmode: Sysmode.fromJson(obj(j, 'sysmode') ?? const {}),
       sleep: s == null ? null : SleepTimer.fromJson(s),
@@ -759,6 +764,7 @@ class EngineState {
     'nextTrack': nextTrack?.toJson(),
     'preloaded': preloaded,
     'ramBytes': ramBytes,
+    'ramLocked': ramLocked,
     'gain': gain,
     'sysmode': sysmode.toJson(),
     'sleep': sleep?.toJson(),
@@ -787,6 +793,7 @@ class EngineState {
     Track? nextTrack,
     bool? preloaded,
     int? ramBytes,
+    bool? ramLocked,
     String? gain,
     Sysmode? sysmode,
     SleepTimer? sleep,
@@ -814,6 +821,7 @@ class EngineState {
     nextTrack: nextTrack ?? this.nextTrack,
     preloaded: preloaded ?? this.preloaded,
     ramBytes: ramBytes ?? this.ramBytes,
+    ramLocked: ramLocked ?? this.ramLocked,
     gain: gain ?? this.gain,
     sysmode: sysmode ?? this.sysmode,
     sleep: clearSleep ? null : (sleep ?? this.sleep),

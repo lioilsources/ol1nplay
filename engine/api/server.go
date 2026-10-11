@@ -59,6 +59,7 @@ type Server struct {
 	lanLn    net.Listener
 	mdns     *zeroconf.Server
 	up       websocket.Upgrader
+	helper   helper
 
 	mu         sync.Mutex
 	clients    map[*client]struct{}
@@ -100,6 +101,7 @@ func New(opts Options) (*Server, error) {
 			Backend: st.Backend, Device: st.Device,
 			RAMLimit: int64(st.RAMLimitMB) << 20, PreloadNext: st.PreloadNext,
 			DSDMode: st.DSDMode, WidthExtension: st.WidthExtension,
+			LockMemory: st.LockMemory, Cooltime: time.Duration(st.CooltimeSec) * time.Second,
 			Resolve:  s.resolve,
 			Log:      s.log,
 			OnState:  s.onState,
@@ -171,6 +173,10 @@ func (s *Server) logf(level, scope, msg string, args ...any) {
 // Start opens the loopback listener (always) and the LAN listener (if
 // enabled in settings), restores the last session and hooks media keys.
 func (s *Server) Start() error {
+	s.helper.logf = s.logf
+	if st := s.store.Get(); st.HelperExe != "" {
+		s.helper.start(st.HelperExe, st.HelperArgs)
+	}
 	mux := s.mux()
 	addr := fmt.Sprintf("127.0.0.1:%d", s.opts.LocalPort)
 	ln, err := net.Listen("tcp", addr)
@@ -215,6 +221,7 @@ func (s *Server) Close() {
 		stopKeys()
 	}
 	s.player.Close()
+	s.helper.stop()
 	if s.sys != nil && s.sys.Applied() {
 		if err := s.sys.Restore(); err != nil {
 			s.logf("error", "sysmode", "restore: %v", err)
@@ -1061,6 +1068,10 @@ func (s *Server) dispatch(c *client, r protocol.Request, rawSettings json.RawMes
 		if len(rawSettings) == 0 {
 			return nil, errors.New("settings missing")
 		}
+		if c.remote && touchesHelper(rawSettings) {
+			// The token lets a phone drive playback, not run programs.
+			return nil, errors.New("only the local UI can set the helper program")
+		}
 		before := s.store.Get()
 		st, err := s.store.Patch(rawSettings)
 		if err != nil {
@@ -1077,6 +1088,17 @@ func (s *Server) dispatch(c *client, r protocol.Request, rawSettings json.RawMes
 		return nil, fmt.Errorf("unknown command %q", r.Type)
 	}
 	return nil, nil
+}
+
+// touchesHelper reports whether a settings patch names the helper program.
+func touchesHelper(raw []byte) bool {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil {
+		return true // unreadable: let Patch report it, but not on our account
+	}
+	_, exe := m["helperExe"]
+	_, args := m["helperArgs"]
+	return exe || args
 }
 
 func (s *Server) needLib(f func() (any, error)) (any, error) {
@@ -1146,6 +1168,13 @@ func (s *Server) applySettings(before, after protocol.Settings) {
 		if after.MediaKeys {
 			s.startMediaKeys()
 		}
+	}
+	if before.LockMemory != after.LockMemory || before.CooltimeSec != after.CooltimeSec {
+		s.player.SetRituals(after.LockMemory, time.Duration(after.CooltimeSec)*time.Second)
+	}
+	if before.HelperExe != after.HelperExe || before.HelperArgs != after.HelperArgs {
+		s.helper.stop()
+		s.helper.start(after.HelperExe, after.HelperArgs)
 	}
 	if before.RAMLimitMB != after.RAMLimitMB || before.PreloadNext != after.PreloadNext || before.DSDMode != after.DSDMode || before.WidthExtension != after.WidthExtension {
 		s.logf("info", "api", "decoder/output preferences change on the next track")

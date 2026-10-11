@@ -39,6 +39,13 @@ type Options struct {
 	// demands it. Default true; it is bit-perfect.
 	WidthExtension bool
 	ABCrossfadeMs  int // 0 = off (it would be DSP)
+	// LockMemory pins each decoded track in physical RAM (no page faults
+	// on the audio path). Best effort; a refusal is logged.
+	LockMemory bool
+	// Cooltime is a pause between loading a track and starting the device
+	// when playback starts from idle — Bug head's "memory cooltime". Never
+	// applied to a gapless transition.
+	Cooltime time.Duration
 
 	// Resolve turns a path into a Track (library lookup). nil = probe.
 	Resolve func(path string) (protocol.Track, error)
@@ -611,9 +618,16 @@ func (p *Player) startCurrent() {
 	p.dirty = true
 	mode := p.dsdMode()
 	limit := p.opts.RAMLimit
+	lock, cool := p.opts.LockMemory, p.opts.Cooltime
 	go func() {
-		l, err := loadTrack(t, mode, limit, nil)
+		l, err := loadTrack(t, mode, limit, lock, nil)
+		if err == nil && cool > 0 {
+			time.Sleep(cool)
+		}
 		p.do(func() {
+			if l != nil && l.lockErr != nil {
+				p.log("warn", "could not lock %s in RAM: %v", t.Path, l.lockErr)
+			}
 			if gen != p.loadGen {
 				if l != nil {
 					l.src.Close()
@@ -705,9 +719,13 @@ func (p *Player) kickPreload() {
 	p.preloadPath = t.Path
 	mode := p.dsdMode()
 	limit := p.opts.RAMLimit
+	lock := p.opts.LockMemory
 	go func() {
-		l, err := loadTrack(t, mode, limit, nil)
+		l, err := loadTrack(t, mode, limit, lock, nil)
 		p.do(func() {
+			if l != nil && l.lockErr != nil {
+				p.log("warn", "could not lock %s in RAM: %v", t.Path, l.lockErr)
+			}
 			p.preloading = false
 			if err != nil {
 				p.log("warn", "preload %s: %v", t.Path, err)
@@ -1447,6 +1465,15 @@ func (p *Player) Stats() protocol.OutputStats {
 	return s
 }
 
+// SetRituals changes the memory lock and cooltime for tracks loaded from
+// now on; what is already in RAM stays as it is.
+func (p *Player) SetRituals(lockMemory bool, cooltime time.Duration) {
+	p.do(func() {
+		p.opts.LockMemory = lockMemory
+		p.opts.Cooltime = cooltime
+	})
+}
+
 // Waveform is the loudness overview of a track that is loaded right now
 // (playing, being fed, or preloaded); nil for anything else.
 func (p *Player) Waveform(path string) *protocol.Waveform {
@@ -1543,6 +1570,7 @@ func (p *Player) stateSnapshot() protocol.State {
 		if l.wave != nil {
 			s.Waveform = l.wave.Path
 		}
+		s.RAMLocked = l.locked
 	}
 	if p.preload != nil {
 		t := p.preload.track

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/ol1n/ol1nplay/engine/protocol"
@@ -187,6 +188,13 @@ func validate(s *protocol.Settings) error {
 	case "", "native", "dop", "pcm":
 	default:
 		return errors.New("dsdMode must be native|dop|pcm")
+	}
+	if s.CooltimeSec < 0 || s.CooltimeSec > 8 {
+		return errors.New("cooltimeSec must be 0–8")
+	}
+	s.HelperExe = strings.TrimSpace(s.HelperExe)
+	if s.HelperExe != "" && !filepath.IsAbs(s.HelperExe) {
+		return errors.New("helperExe must be a full path")
 	}
 	if s.RAMLimitMB < 16 {
 		s.RAMLimitMB = 16

@@ -301,6 +301,7 @@ type State struct {
 	NextTrack  *Track      `json:"nextTrack,omitempty"` // pre-decoded for gapless
 	Preloaded  bool        `json:"preloaded"`           // next track is fully in RAM
 	RAMBytes   int64       `json:"ramBytes"`            // bytes of PCM resident
+	RAMLocked  bool        `json:"ramLocked"`           // ...and pinned in physical RAM (Settings.LockMemory)
 	Gain       string      `json:"gain"`                // always "0 dB" – there is no volume
 	Sysmode    Sysmode     `json:"sysmode"`
 	Sleep      *SleepTimer `json:"sleep,omitempty"`
@@ -457,6 +458,10 @@ type Settings struct {
 	DSDMode          string   `json:"dsdMode"`          // "native" | "dop" | "pcm" (pcm = FFmpeg conversion, not bit-perfect)
 	WidthExtension   bool     `json:"widthExtension"`   // allow 16/24 → 32 zero-padding when the device demands it
 	BufferPreference string   `json:"bufferPreference"` // "preferred" | "max" | "min"
+	LockMemory       bool     `json:"lockMemory"`       // pin decoded tracks in physical RAM
+	CooltimeSec      int      `json:"cooltimeSec"`      // 0–8 s pause between loading and starting from idle
+	HelperExe        string   `json:"helperExe"`        // program started with the engine and stopped with it (local UI only)
+	HelperArgs       string   `json:"helperArgs"`
 	RemoteEnabled    bool     `json:"remoteEnabled"`
 	RemotePort       int      `json:"remotePort"`
 	MDNS             bool     `json:"mdns"`

@@ -250,7 +250,13 @@ class _Extras extends ConsumerWidget {
             ),
           ),
         ],
-        row('RAM resident', Text(fmtBytes(state.ramBytes), style: val)),
+        row(
+          'RAM resident',
+          Text(
+            '${fmtBytes(state.ramBytes)}${state.ramLocked ? '  ✓ locked' : ''}',
+            style: val,
+          ),
+        ),
         row(
           'next',
           Text(

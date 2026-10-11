@@ -51,7 +51,10 @@ class MonoModeSwitch extends StatelessWidget {
           ),
         ),
         textStyle: WidgetStatePropertyAll(
-          TextStyle(fontSize: large ? 15 : 12, fontWeight: FontWeight.w600),
+          Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontSize: large ? 15 : 12,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       segments: [

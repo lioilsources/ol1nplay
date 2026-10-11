@@ -1,7 +1,7 @@
 name: ol1nplay_desktop
 description: "Ol1nPlay desktop: the Flutter face of the bit-perfect ASIO engine (Windows first, macOS for development)."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.12.2

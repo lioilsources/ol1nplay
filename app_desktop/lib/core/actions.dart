@@ -71,6 +71,10 @@ class EngineActions {
       guard(c, () async {
         on ? await client.addFavorite(path) : await client.removeFavorite(path);
         ref.read(libraryVersionProvider.notifier).bumpAll();
+        // Folder listings only follow changes to their own directory, so
+        // without this the heart would not fill in until the folder was
+        // opened again.
+        ref.invalidate(listingProvider);
       });
 
   Future<void> rescan(BuildContext? c, String dir) =>

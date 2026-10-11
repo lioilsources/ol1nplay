@@ -433,3 +433,35 @@ func TestWaveform(t *testing.T) {
 	}
 	p.Stop()
 }
+
+// The cooltime holds a start from idle in "loading"; the memory lock is
+// reported once the track is resident.
+func TestCooltimeAndMemoryLock(t *testing.T) {
+	cap := &capture{}
+	p := newTestPlayer(t, cap)
+	b, _ := sink.Get("null")
+	b.(*null.Backend).SetFast(false)
+	p.SetRituals(true, 400*time.Millisecond)
+	start := time.Now()
+	if err := p.Play([]protocol.Track{mustTrack(t, "sine24_96.flac")}, 0); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(150 * time.Millisecond)
+	if s := p.State().Playback; s != "loading" {
+		t.Fatalf("during the cooltime: %s", s)
+	}
+	for i := 0; i < 500 && p.State().Playback != "playing"; i++ {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if d := time.Since(start); d < 400*time.Millisecond {
+		t.Fatalf("started after %v, before the cooltime ran out", d)
+	}
+	s := p.State()
+	if s.Playback != "playing" {
+		t.Fatalf("never started: %s", s.Playback)
+	}
+	if !s.RAMLocked {
+		t.Log("the OS refused the memory lock here; playback went on, as it must")
+	}
+	p.Stop()
+}

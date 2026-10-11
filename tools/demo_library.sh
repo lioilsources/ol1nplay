@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds a small tagged library (three albums, covers, one lyrics file) for
 # screenshots and for trying the apps without pointing them at real music.
-# The audio is quiet sine tones. Usage: tools/demo_library.sh <out-dir>
+# The audio is sine tones with a quiet intro and slow swells, so the seek
+# bar's loudness overview has something to show. Usage: tools/demo_library.sh <out-dir>
 set -euo pipefail
 
 out="${1:?usage: demo_library.sh <out-dir>}"
@@ -19,7 +20,7 @@ album() {
   for title in "$@"; do
     ffmpeg -v error -y -f lavfi \
       -i "sine=frequency=$((180 + n * 55)):sample_rate=$rate:duration=$((secs + n * 7))" \
-      -af "volume=-30dB" -ac 2 -sample_fmt "$fmt" -bits_per_raw_sample "$bits" \
+      -af "volume=eval=frame:volume='0.012+0.22*gt(t,6)*pow(abs(sin(0.31*t+$n)),1.6)*(0.65+0.35*sin(2.1*t))'" -ac 2 -sample_fmt "$fmt" -bits_per_raw_sample "$bits" \
       -metadata artist="$artist" -metadata album_artist="$artist" \
       -metadata album="$name" -metadata title="$title" \
       -metadata track="$n" -metadata date="$year" \

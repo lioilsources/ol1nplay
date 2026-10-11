@@ -60,6 +60,8 @@ dist-windows: engine-windows
 	cp $(BIN)/ol1nplay-engine.exe dist/windows/engine/
 	cp $(ENGINE_DIR)/ffmpeg-win/bin/avcodec-*.dll $(ENGINE_DIR)/ffmpeg-win/bin/avformat-*.dll \
 	   $(ENGINE_DIR)/ffmpeg-win/bin/avutil-*.dll $(ENGINE_DIR)/ffmpeg-win/bin/swresample-*.dll dist/windows/engine/
+	# MinGW builds import the pthread runtime; without it the engine does not start.
+	cp "$$(find -L "$$(dirname "$$(realpath "$$(command -v $(MINGW))")")/.." -name libwinpthread-1.dll | head -1)" dist/windows/engine/
 	cp $(ENGINE_DIR)/ffmpeg-win/LICENSE.txt dist/windows/engine/FFMPEG-LICENSE.txt 2>/dev/null || true
 	@echo "now: cd app_desktop && flutter build windows && copy build/windows/x64/runner/Release/* to dist/windows/"
 

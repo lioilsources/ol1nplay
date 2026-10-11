@@ -142,7 +142,7 @@ class FakeEngine {
       );
 
   ServerInfo get serverInfo => ServerInfo(
-    name: 'Ol1nPlay (fake)',
+    name: 'Elfton Player (fake)',
     version: '0.0.0-fake',
     protocolVersion: protocolVersion,
     os: Platform.operatingSystem,

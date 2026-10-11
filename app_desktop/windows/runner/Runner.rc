@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "now.olin" "\0"
-            VALUE "FileDescription", "ol1nplay_desktop" "\0"
+            VALUE "FileDescription", "Elfton Player" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "ol1nplay_desktop" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 now.olin. All rights reserved." "\0"
             VALUE "OriginalFilename", "ol1nplay_desktop.exe" "\0"
-            VALUE "ProductName", "ol1nplay_desktop" "\0"
+            VALUE "ProductName", "Elfton Player" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

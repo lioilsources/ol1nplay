@@ -1,4 +1,6 @@
-# Ol1nPlay
+# Elfton Player
+
+*(repository and code name: Ol1nPlay)*
 
 A local music player for Windows 11 whose only priority is the quality of
 the USB output. No streaming, no upsampling, no volume, no EQ. The signal

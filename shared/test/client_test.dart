@@ -41,7 +41,7 @@ void main() {
 
   test('hello with the right token connects and primes state', () async {
     final info = await client.connect(engine.wsUri, token: 'secret');
-    expect(info.name, contains('Ol1nPlay'));
+    expect(info.name, contains('Elfton Player'));
     expect(info.httpPort, engine.port);
     expect(client.status.value, ConnectionStatus.connected);
     expect(

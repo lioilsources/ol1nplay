@@ -192,7 +192,7 @@ func TestHelloStateAndPlay(t *testing.T) {
 
 	var info protocol.ServerInfo
 	_ = json.Unmarshal(c.must(protocol.Request{Type: protocol.CmdHello}), &info)
-	if info.Name != "Ol1nPlay" || info.ProtocolVersion != protocol.Version || info.HTTPPort != port {
+	if info.Name != "Elfton Player" || info.ProtocolVersion != protocol.Version || info.HTTPPort != port {
 		t.Fatalf("info = %+v", info)
 	}
 

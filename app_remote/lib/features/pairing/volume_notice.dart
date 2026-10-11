@@ -45,7 +45,7 @@ class _VolumeNoticeGateState extends ConsumerState<VolumeNoticeGate> {
             const NoVolumeNotice(),
             const SizedBox(height: 8),
             Text(
-              'Ol1nPlay never touches the samples: no software volume, no '
+              'Elfton Player never touches the samples: no software volume, no '
               'EQ, no resampling. Set the level on your DAC or amplifier.',
               style: Theme.of(ctx).textTheme.bodyMedium,
             ),

@@ -270,7 +270,7 @@ func (s *Server) enableRemote(on bool) error {
 		note("info", "LAN remote listening on :%d", port)
 		if st.MDNS {
 			host, _ := os.Hostname()
-			srv, err := zeroconf.Register("Ol1nPlay @ "+host, "_ol1nplay._tcp", "local.", port,
+			srv, err := zeroconf.Register("Elfton Player @ "+host, "_ol1nplay._tcp", "local.", port,
 				[]string{fmt.Sprintf("http=%d", port), "name=" + host}, nil)
 			if err != nil {
 				note("warn", "mDNS: %v", err)
@@ -702,7 +702,7 @@ func (s *Server) serverInfo() protocol.ServerInfo {
 	if s.sys != nil {
 		elevated = s.sys.IsElevated()
 	}
-	return protocol.ServerInfo{Name: "Ol1nPlay", Version: Version + " / " + decode.Version(), ProtocolVersion: protocol.Version,
+	return protocol.ServerInfo{Name: "Elfton Player", Version: Version + " / " + decode.Version(), ProtocolVersion: protocol.Version,
 		OS: runtime.GOOS, Hostname: host, Elevated: elevated, HTTPPort: s.opts.LocalPort, Backends: sink.Names()}
 }
 

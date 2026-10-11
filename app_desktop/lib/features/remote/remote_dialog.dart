@@ -106,7 +106,7 @@ class _RemoteDialogState extends ConsumerState<_RemoteDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Scan with the Ol1nPlay remote app.',
+                                'Scan with the Elfton Remote app.',
                                 style: TextStyle(fontSize: 13),
                               ),
                               const SizedBox(height: 8),

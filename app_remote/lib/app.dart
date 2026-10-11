@@ -19,7 +19,7 @@ class Ol1nRemoteApp extends ConsumerWidget {
     final hasEngine =
         id != null && (engines.value?.any((e) => e.id == id) ?? false);
     return MaterialApp(
-      title: 'Ol1nPlay Remote',
+      title: 'Elfton Remote',
       debugShowCheckedModeBanner: false,
       theme: Ol1nTheme.light(),
       darkTheme: Ol1nTheme.dark(),

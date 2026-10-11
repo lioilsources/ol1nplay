@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# Writes every platform's launcher icon from speaker_1024.png. That PNG is
-# speaker.svg rendered by Chrome (ImageMagick's own SVG renderer drops the
-# gradients):
-#   chrome --headless=new --default-background-color=00000000 \
-#     --window-size=1024,1024 --screenshot=speaker_1024.png speaker.svg
+# Writes every platform's launcher icon from elfton_1024.png: the artwork
+# with a transparent surround, 1024 px square.
 set -euo pipefail
 cd "$(dirname "$0")"
-src=speaker_1024.png
+src=elfton_1024.png
 root=../..
 
 mac=$root/app_desktop/macos/Runner/Assets.xcassets/AppIcon.appiconset
@@ -17,9 +14,11 @@ done
 magick $src -define icon:auto-resize=256,128,64,48,32,16 \
   $root/app_desktop/windows/runner/resources/app_icon.ico
 
-# Phones want an opaque square; the OS cuts its own corners.
+# Phones want an opaque square; the OS cuts its own corners. The fill is
+# the bezel's copper, so a sliver left outside the artwork's own corners
+# reads as more bezel.
 flat=$(mktemp -t icon).png
-magick $src -background '#17171c' -alpha remove -alpha off "$flat"
+magick $src -background '#b0694a' -alpha remove -alpha off "$flat"
 
 ios=$root/app_remote/ios/Runner/Assets.xcassets/AppIcon.appiconset
 for f in "$ios"/Icon-App-*.png; do

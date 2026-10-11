@@ -7,6 +7,10 @@ import 'fmt.dart';
 /// Position bar driven by the device clock, with the A and B loop points
 /// drawn as markers. Dragging emits the target in milliseconds once, on
 /// release — the engine flushes its ring on every seek, so we don't spam it.
+///
+/// With a [waveform] the bar is the track's loudness drawn end to end, so a
+/// quiet intro or the loud part is something you can aim at; without one
+/// it is a thin line.
 class SeekBar extends StatefulWidget {
   const SeekBar({
     super.key,
@@ -14,7 +18,11 @@ class SeekBar extends StatefulWidget {
     this.onSeekMs,
     this.showTimes = true,
     this.height = 28,
+    this.waveform,
   });
+
+  /// Drawn only when it belongs to the playing track.
+  final Waveform? waveform;
 
   final EngineState state;
   final ValueChanged<int>? onSeekMs;
@@ -36,6 +44,10 @@ class _SeekBarState extends State<SeekBar> {
     final frac = _drag ?? s.progress;
     final shownMs = _drag == null ? s.positionMs : (_drag! * dur).round();
     final enabled = widget.onSeekMs != null && s.hasTrack && dur > 0;
+    final wf = widget.waveform;
+    final wave = wf != null && !wf.isEmpty && wf.path == s.track?.path
+        ? wf
+        : null;
 
     final bar = LayoutBuilder(
       builder: (context, c) {
@@ -68,6 +80,8 @@ class _SeekBarState extends State<SeekBar> {
                     ? Ol1nTheme.bitPerfectGreen
                     : scheme.onSurfaceVariant,
                 thumb: enabled,
+                wave: wave,
+                waveRest: scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -114,7 +128,12 @@ class _SeekPainter extends CustomPainter {
     required this.fill,
     required this.marker,
     required this.thumb,
+    this.wave,
+    required this.waveRest,
   });
+
+  final Waveform? wave;
+  final Color waveRest;
 
   final double fraction;
   final double? aX;
@@ -125,8 +144,79 @@ class _SeekPainter extends CustomPainter {
   final Color marker;
   final bool thumb;
 
+  /// Mirrored bars: the peak faint, the RMS solid on top; amber up to the
+  /// play position, grey after it.
+  void _paintWave(Canvas canvas, Size size, Waveform w) {
+    final cy = size.height / 2;
+    final fx = size.width * fraction.clamp(0, 1);
+    const pitch = 3.0; // 2 px bar + 1 px gap
+    final n = (size.width / pitch).floor();
+    if (n <= 0) return;
+    final half = size.height / 2 - 1;
+    final paint = Paint();
+    for (var i = 0; i < n; i++) {
+      // Each bar shows the loudest of the bins it covers.
+      final from = i * w.bins ~/ n;
+      final to = ((i + 1) * w.bins ~/ n).clamp(from + 1, w.bins);
+      var pk = 0, rm = 0;
+      for (var b = from; b < to; b++) {
+        if (w.peak[b] > pk) pk = w.peak[b];
+        if (w.rms[b] > rm) rm = w.rms[b];
+      }
+      final x = i * pitch;
+      final base = x + 1 <= fx ? fill : waveRest;
+      final ph = (pk / 255 * half).clamp(1.0, half);
+      final rh = (rm / 255 * half).clamp(1.0, half);
+      paint.color = base.withValues(alpha: 0.35);
+      canvas.drawRect(Rect.fromLTRB(x, cy - ph, x + 2, cy + ph), paint);
+      paint.color = base.withValues(alpha: x + 1 <= fx ? 1 : 0.7);
+      canvas.drawRect(Rect.fromLTRB(x, cy - rh, x + 2, cy + rh), paint);
+    }
+  }
+
+  void _paintWaveOverlay(Canvas canvas, Size size) {
+    final fx = size.width * fraction.clamp(0, 1);
+    if (aX != null && bX != null && bX! > aX!) {
+      canvas.drawRect(
+        Rect.fromLTWH(aX!, 0, bX! - aX!, size.height),
+        Paint()..color = marker.withValues(alpha: loopActive ? 0.18 : 0.08),
+      );
+    }
+    final mp = Paint()
+      ..color = marker
+      ..strokeWidth = 2;
+    for (final (x, label) in [(aX, 'A'), (bX, 'B')]) {
+      if (x == null) continue;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), mp);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: marker,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x + 3, 0));
+    }
+    if (thumb) {
+      canvas.drawRect(
+        Rect.fromLTWH(fx - 1, 0, 2, size.height),
+        Paint()..color = fill,
+      );
+    }
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
+    final w = wave;
+    if (w != null && size.height >= 16) {
+      _paintWave(canvas, size, w);
+      _paintWaveOverlay(canvas, size);
+      return;
+    }
     final cy = size.height / 2;
     const h = 3.0;
     final r = RRect.fromRectAndRadius(
@@ -178,5 +268,8 @@ class _SeekPainter extends CustomPainter {
       o.aX != aX ||
       o.bX != bX ||
       o.loopActive != loopActive ||
-      o.thumb != thumb;
+      o.thumb != thumb ||
+      o.wave != wave ||
+      o.fill != fill ||
+      o.waveRest != waveRest;
 }

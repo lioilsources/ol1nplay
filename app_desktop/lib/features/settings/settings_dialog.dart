@@ -77,6 +77,7 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
                       segments: const [
                         ButtonSegment(value: 'system', label: Text('System')),
                         ButtonSegment(value: 'dark', label: Text('Dark')),
+                        ButtonSegment(value: 'black', label: Text('Black')),
                         ButtonSegment(value: 'light', label: Text('Light')),
                       ],
                       selected: {s.theme},

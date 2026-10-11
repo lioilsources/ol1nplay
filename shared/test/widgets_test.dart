@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ol1nplay_shared/ol1nplay_shared.dart';
@@ -301,5 +303,82 @@ void main() {
       ThemeMode.light,
     );
     expect(Ol1nTheme.modeOfSettings(null), ThemeMode.system);
+  });
+
+  test('black is a dark theme of its own, darker than dark', () {
+    const s = Settings(theme: 'black');
+    expect(Ol1nTheme.modeOfSettings(s), ThemeMode.dark);
+    final black = Ol1nTheme.darkOfSettings(s);
+    expect(black.brightness, Brightness.dark);
+    expect(black.scaffoldBackgroundColor, const Color(0xFF000000));
+    expect(
+      Ol1nTheme.darkOfSettings(
+        const Settings(theme: 'dark'),
+      ).scaffoldBackgroundColor,
+      Ol1nTheme.dark().scaffoldBackgroundColor,
+    );
+  });
+
+  testWidgets('MonoModeSwitch reports the tapped mode', (t) async {
+    String? got;
+    await t.pumpWidget(
+      _wrap(MonoModeSwitch(mode: MonoMode.mono, onChanged: (m) => got = m)),
+    );
+    await t.tap(find.text('L'));
+    expect(got, MonoMode.left);
+    await t.tap(find.text('R'));
+    expect(got, MonoMode.right);
+    await t.tap(find.text('Stereo'));
+    expect(got, MonoMode.stereo);
+  });
+
+  testWidgets('SeekBar with a waveform still seeks where it is tapped', (
+    t,
+  ) async {
+    int? ms;
+    final wave = Waveform(
+      path: _track.path,
+      peak: Uint8List.fromList(List.generate(64, (i) => i * 4)),
+      rms: Uint8List.fromList(List.generate(64, (i) => i * 2)),
+    );
+    await t.pumpWidget(
+      _wrap(
+        SizedBox(
+          width: 400,
+          child: SeekBar(
+            state: _playing(),
+            showTimes: false,
+            height: 44,
+            waveform: wave,
+            onSeekMs: (v) => ms = v,
+          ),
+        ),
+      ),
+    );
+    final box = t.getRect(find.byType(SeekBar));
+    await t.tapAt(Offset(box.left + box.width * 0.75, box.center.dy));
+    expect(ms, closeTo(_track.durationMs * 0.75, _track.durationMs * 0.01));
+  });
+
+  test('Waveform survives JSON and tolerates an engine without one', () {
+    final w = Waveform(
+      path: 'a.flac',
+      peak: Uint8List.fromList([0, 128, 255]),
+      rms: Uint8List.fromList([0, 64, 200]),
+    );
+    final back = Waveform.fromJson(w.toJson());
+    expect(back.path, 'a.flac');
+    expect(back.peak, [0, 128, 255]);
+    expect(back.rms, [0, 64, 200]);
+    expect(Waveform.fromJson(const {'path': 'a.flac'}).isEmpty, isTrue);
+  });
+
+  test('EngineState reads the mono mode, and the bare bool of 0.1', () {
+    expect(
+      EngineState.fromJson(const {'mono': true, 'monoMode': 'left'}).monoMode,
+      MonoMode.left,
+    );
+    expect(EngineState.fromJson(const {'mono': true}).monoMode, MonoMode.mono);
+    expect(EngineState.fromJson(const {}).monoMode, MonoMode.stereo);
   });
 }

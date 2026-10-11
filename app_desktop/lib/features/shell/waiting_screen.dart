@@ -130,7 +130,9 @@ class WaitingScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Saved. Restart Elfton Player to use the new address.'),
+            content: Text(
+              'Saved. Restart Elfton Player to use the new address.',
+            ),
           ),
         );
       }

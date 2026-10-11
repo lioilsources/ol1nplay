@@ -18,6 +18,15 @@ abstract final class Ol1nTheme {
   static const _darkText = Color(0xFFEDEBE6);
   static const _darkTextDim = Color(0xFF8E8C88);
 
+  // "Black": true-black background and a notch less contrast everywhere,
+  // for a dark room and OLED panels.
+  static const _blackBg = Color(0xFF000000);
+  static const _blackSurface = Color(0xFF070708);
+  static const _blackSurfaceHi = Color(0xFF111114);
+  static const _blackOutline = Color(0xFF1C1C21);
+  static const _blackText = Color(0xFFCFCDC8);
+  static const _blackTextDim = Color(0xFF6F6D69);
+
   static const _lightBg = Color(0xFFF7F5F0);
   static const _lightSurface = Color(0xFFFFFFFF);
   static const _lightSurfaceHi = Color(0xFFEFECE5);
@@ -56,6 +65,16 @@ abstract final class Ol1nTheme {
     outline: _darkOutline,
     text: _darkText,
     textDim: _darkTextDim,
+  );
+
+  static ThemeData black() => _build(
+    brightness: Brightness.dark,
+    bg: _blackBg,
+    surface: _blackSurface,
+    surfaceHi: _blackSurfaceHi,
+    outline: _blackOutline,
+    text: _blackText,
+    textDim: _blackTextDim,
   );
 
   static ThemeData light() => _build(
@@ -184,12 +203,16 @@ abstract final class Ol1nTheme {
     );
   }
 
-  /// Resolves `Settings.theme` ("system" | "dark" | "light").
+  /// Resolves `Settings.theme` ("system" | "dark" | "black" | "light").
   static ThemeMode modeOf(String theme) => switch (theme) {
-    'dark' => ThemeMode.dark,
+    'dark' || 'black' => ThemeMode.dark,
     'light' => ThemeMode.light,
     _ => ThemeMode.system,
   };
 
   static ThemeMode modeOfSettings(Settings? s) => modeOf(s?.theme ?? 'system');
+
+  /// The dark theme `Settings.theme` asks for: "black" or the regular one.
+  static ThemeData darkOfSettings(Settings? s) =>
+      s?.theme == 'black' ? black() : dark();
 }

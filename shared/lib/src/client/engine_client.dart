@@ -413,6 +413,9 @@ class EngineClient {
   Future<void> seekMs(int ms) => _call(Cmd.seek, ms: ms);
   Future<void> seekSamples(int samples) => _call(Cmd.seek, samples: samples);
   Future<void> setMono(bool on) => _call(Cmd.mono, flag: on);
+
+  /// See [MonoMode].
+  Future<void> setMonoMode(String mode) => _call(Cmd.mono, mode: mode);
   Future<void> setRepeat(String mode) => _call(Cmd.repeat, mode: mode);
   Future<void> setShuffle(bool on) => _call(Cmd.shuffle, flag: on);
 
@@ -497,6 +500,11 @@ class EngineClient {
   // misc
   Future<Lyrics> lyrics(String path) async =>
       Lyrics.fromJson(_m(await _call(Cmd.lyrics, path: path)));
+
+  /// The loudness overview of a loaded track ([EngineState.waveform] names
+  /// the one available now). Empty when the engine has none.
+  Future<Waveform> waveform(String path) async =>
+      Waveform.fromJson(_m(await _call(Cmd.waveform, path: path)));
   Future<CoverRef?> cover(String path) async {
     final d = await _call(Cmd.cover, path: path);
     if (d == null) return null;

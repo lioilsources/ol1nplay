@@ -94,10 +94,7 @@ class EngineLauncher {
           path,
           // The engine is a console program; without this a terminal window
           // would sit behind the player on Windows.
-          [
-            'serve',
-            if (Platform.isWindows) '-hide-console',
-          ],
+          ['serve', if (Platform.isWindows) '-hide-console'],
           mode: ProcessStartMode.detachedWithStdio,
           workingDirectory: File(path).parent.path,
         );

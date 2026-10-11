@@ -433,3 +433,23 @@ final lyricsProvider = FutureProvider<Lyrics?>((ref) async {
     return null;
   }
 });
+
+/// The playing track's loudness overview, fetched once per track; null
+/// when the engine has none (streamed from disk, DSD, nothing playing).
+final waveformProvider = FutureProvider<Waveform?>((ref) async {
+  final path = ref.watch(engineStateProvider.select((s) => s?.waveform ?? ''));
+  if (path.isEmpty) return null;
+  final w = await ref.watch(clientProvider).waveform(path);
+  return w.isEmpty ? null : w;
+});
+
+/// Folder view shows only the tracks marked with a heart.
+class FavoritesOnlyNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void toggle() => state = !state;
+}
+
+final favoritesOnlyProvider = NotifierProvider<FavoritesOnlyNotifier, bool>(
+  FavoritesOnlyNotifier.new,
+);

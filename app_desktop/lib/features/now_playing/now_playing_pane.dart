@@ -84,8 +84,17 @@ class NowPlayingPane extends ConsumerWidget {
                     ],
                     const SizedBox(height: 12),
                     Center(child: FormatBadge(state: s)),
-                    const SizedBox(height: 10),
-                    SeekBar(state: s, onSeekMs: (ms) => client.seekMs(ms)),
+                    // The shell has its own full-width seek strip; only the
+                    // fullscreen view needs one here.
+                    if (fullscreen) ...[
+                      const SizedBox(height: 10),
+                      SeekBar(
+                        state: s,
+                        onSeekMs: (ms) => client.seekMs(ms),
+                        waveform: ref.watch(waveformProvider).value,
+                        height: 56,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     FittedBox(
                       fit: BoxFit.scaleDown,
@@ -95,7 +104,7 @@ class NowPlayingPane extends ConsumerWidget {
                         onToggle: client.toggle,
                         onNext: client.next,
                         onStop: client.stop,
-                        onMono: client.setMono,
+                        showMono: false,
                         onRepeat: client.setRepeat,
                         onShuffle: client.setShuffle,
                       ),

@@ -110,7 +110,12 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: SeekBar(state: s, onSeekMs: (ms) => client.seekMs(ms)),
+                child: SeekBar(
+                  state: s,
+                  onSeekMs: (ms) => client.seekMs(ms),
+                  waveform: ref.watch(waveformProvider).value,
+                  height: 56,
+                ),
               ),
               TransportBar(
                 state: s,
@@ -127,9 +132,21 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   client.next();
                 },
                 onStop: () => client.stop(),
-                onMono: (v) => client.setMono(v),
+                showMono: false,
                 onRepeat: (m) => client.setRepeat(m),
                 onShuffle: (v) => client.setShuffle(v),
+              ),
+              // Big enough to flip between the speakers without looking.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                child: MonoModeSwitch(
+                  mode: s.monoMode,
+                  large: true,
+                  onChanged: (m) {
+                    haptic();
+                    client.setMonoMode(m);
+                  },
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),

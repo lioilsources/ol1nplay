@@ -34,9 +34,6 @@ Future<void> main() async {
     ],
   );
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const Ol1nPlayApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const Ol1nPlayApp()),
   );
 }

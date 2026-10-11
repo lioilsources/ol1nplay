@@ -78,7 +78,7 @@ const (
 	CmdNext    = "next"
 	CmdPrev    = "prev"
 	CmdSeek    = "seek"    // Samples or Ms (Samples wins if non-zero)
-	CmdMono    = "mono"    // Bool
+	CmdMono    = "mono"    // Mode: stereo | mono | left | right (or Bool: true = mono)
 	CmdRepeat  = "repeat"  // Mode: off | one | all
 	CmdShuffle = "shuffle" // Bool
 
@@ -124,6 +124,7 @@ const (
 	CmdSettingsGet    = "settings.get" // → Settings
 	CmdSettingsSet    = "settings.set" // Settings (partial merge)
 	CmdLyrics         = "lyrics"       // Path → Lyrics (sidecar .lrc / .txt or tag)
+	CmdWaveform       = "waveform"     // Path → Waveform (only for a track that is loaded: State.Waveform)
 	CmdCover          = "cover"        // Path → CoverRef (clients fetch via HTTP)
 	CmdVersion        = "version"      // → ServerInfo
 	CmdShutdown       = "shutdown"
@@ -290,7 +291,8 @@ type State struct {
 	DurationMs int64       `json:"durationMs"`
 	Source     Format      `json:"source"` // decoded format (native, untouched)
 	Output     Output      `json:"output"`
-	Mono       bool        `json:"mono"`
+	Mono       bool        `json:"mono"`     // any mode but stereo
+	MonoMode   string      `json:"monoMode"` // "stereo" | "mono" | "left" | "right"
 	AB         ABLoop      `json:"ab"`
 	Repeat     string      `json:"repeat"` // "off" | "one" | "all"
 	Shuffle    bool        `json:"shuffle"`
@@ -304,6 +306,17 @@ type State struct {
 	Sleep      *SleepTimer `json:"sleep,omitempty"`
 	Remote     RemoteInfo  `json:"remote"`
 	Lyrics     *Lyrics     `json:"lyrics,omitempty"`
+	Waveform   string      `json:"waveform,omitempty"` // path whose Waveform can be fetched now ("" = none)
+}
+
+// Waveform is a track's loudness overview for the seek bar: Bins values
+// across its length, each amplitude mapped 0..255 on a square-root scale
+// (255 = full scale). JSON carries the two byte slices as base64.
+type Waveform struct {
+	Path string `json:"path"`
+	Bins int    `json:"bins"`
+	Peak []byte `json:"peak"` // loudest sample in the bin
+	RMS  []byte `json:"rms"`  // average level of the bin
 }
 
 // Queue is the play queue.
@@ -433,7 +446,8 @@ type CoverRef struct {
 type Settings struct {
 	Backend          string   `json:"backend"`
 	Device           string   `json:"device"`
-	Mono             bool     `json:"mono"`
+	Mono             bool     `json:"mono"`     // derived from MonoMode; a bare bool still switches stereo/mono
+	MonoMode         string   `json:"monoMode"` // "stereo" | "mono" | "left" | "right"
 	Repeat           string   `json:"repeat"`
 	Shuffle          bool     `json:"shuffle"`
 	RAMLimitMB       int      `json:"ramLimitMB"`  // above this, stream from disk
@@ -449,5 +463,23 @@ type Settings struct {
 	MediaKeys        bool     `json:"mediaKeys"`
 	Scrobble         bool     `json:"scrobble"` // writes a local scrobble log (last.fm export format)
 	Roots            []string `json:"roots"`
-	Theme            string   `json:"theme"` // "system" | "dark" | "light" – stored here so remote + desktop agree
+	Theme            string   `json:"theme"` // "system" | "dark" | "black" | "light" – stored here so remote + desktop agree
+}
+
+// Mono modes. "left" and "right" play the same downmix through one speaker
+// only, for comparing the two sides of a system against each other.
+const (
+	MonoStereo = "stereo"
+	MonoBoth   = "mono"
+	MonoLeft   = "left"
+	MonoRight  = "right"
+)
+
+// NormalizeMonoMode maps anything unknown (including "") to stereo.
+func NormalizeMonoMode(m string) string {
+	switch m {
+	case MonoBoth, MonoLeft, MonoRight:
+		return m
+	}
+	return MonoStereo
 }

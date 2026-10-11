@@ -255,8 +255,14 @@ func TestSeekAndMono(t *testing.T) {
 	if !s.Mono || s.Output.BitPerfect {
 		t.Fatalf("mono state: mono=%v bitPerfect=%v", s.Mono, s.Output.BitPerfect)
 	}
+	for _, mode := range []string{protocol.MonoLeft, protocol.MonoRight} {
+		p.SetMonoMode(mode)
+		if s = p.State(); !s.Mono || s.MonoMode != mode || s.Output.BitPerfect {
+			t.Fatalf("mode %s: mono=%v monoMode=%q bitPerfect=%v", mode, s.Mono, s.MonoMode, s.Output.BitPerfect)
+		}
+	}
 	p.SetMono(false)
-	if s = p.State(); !s.Output.BitPerfect {
+	if s = p.State(); !s.Output.BitPerfect || s.MonoMode != protocol.MonoStereo {
 		t.Fatalf("bit-perfect should be back: %+v", s.Output)
 	}
 	p.Stop()
@@ -396,4 +402,34 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
+}
+
+func TestWaveform(t *testing.T) {
+	cap := &capture{}
+	p := newTestPlayer(t, cap)
+	b, _ := sink.Get("null")
+	b.(*null.Backend).SetFast(false)
+	tr := mustTrack(t, "sine24_96.flac")
+	if err := p.Play([]protocol.Track{tr}, 0); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 500 && p.State().Playback != "playing"; i++ {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if got := p.State().Waveform; got != tr.Path {
+		t.Fatalf("state.waveform = %q, want the playing track", got)
+	}
+	w := p.Waveform(tr.Path)
+	if w == nil || w.Bins != len(w.Peak) || w.Bins != len(w.RMS) || w.Bins == 0 {
+		t.Fatalf("waveform = %+v", w)
+	}
+	// A steady sine: every bin has signal, and RMS sits below the peak.
+	mid := w.Bins / 2
+	if w.Peak[mid] == 0 || w.RMS[mid] == 0 || w.RMS[mid] > w.Peak[mid] {
+		t.Fatalf("bin %d: peak=%d rms=%d", mid, w.Peak[mid], w.RMS[mid])
+	}
+	if p.Waveform("nope.flac") != nil {
+		t.Fatal("waveform for a track that is not loaded")
+	}
+	p.Stop()
 }

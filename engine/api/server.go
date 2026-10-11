@@ -107,7 +107,7 @@ func New(opts Options) (*Server, error) {
 			OnPlayed: s.onPlayed,
 		})
 	}
-	s.player.SetMono(st.Mono)
+	s.player.SetMonoMode(st.MonoMode)
 	s.player.SetRepeat(st.Repeat)
 	s.player.SetShuffle(st.Shuffle)
 	return s, nil
@@ -645,7 +645,7 @@ func (s *Server) restoreSession() {
 func (s *Server) saveSession() {
 	q := s.player.Queue()
 	st := s.player.State()
-	r := Resume{Index: q.Index, PositionMs: st.PositionMs, Mono: st.Mono}
+	r := Resume{Index: q.Index, PositionMs: st.PositionMs, Mono: st.Mono, MonoMode: st.MonoMode}
 	for _, t := range q.Tracks {
 		r.Paths = append(r.Paths, t.Path)
 	}
@@ -796,6 +796,12 @@ func (s *Server) dispatch(c *client, r protocol.Request, rawSettings json.RawMes
 		}
 		return l, nil
 
+	case protocol.CmdWaveform:
+		if w := p.Waveform(r.Path); w != nil {
+			return w, nil
+		}
+		return protocol.Waveform{Path: r.Path}, nil
+
 	// ---- transport
 	case protocol.CmdPlay:
 		switch {
@@ -846,9 +852,12 @@ func (s *Server) dispatch(c *client, r protocol.Request, rawSettings json.RawMes
 			p.SeekMs(r.Ms)
 		}
 	case protocol.CmdMono:
-		on := boolOf(r.Bool, true)
-		p.SetMono(on)
-		_ = s.store.Update(func(st *protocol.Settings) { st.Mono = on })
+		mode := protocol.NormalizeMonoMode(r.Mode)
+		if r.Mode == "" && boolOf(r.Bool, true) {
+			mode = protocol.MonoBoth
+		}
+		p.SetMonoMode(mode)
+		_ = s.store.Update(func(st *protocol.Settings) { st.MonoMode = mode })
 	case protocol.CmdRepeat:
 		p.SetRepeat(r.Mode)
 		_ = s.store.Update(func(st *protocol.Settings) { st.Repeat = r.Mode })
@@ -1104,8 +1113,8 @@ func sampleOrNeg(r protocol.Request) int64 {
 
 // applySettings pushes changed preferences into the running parts.
 func (s *Server) applySettings(before, after protocol.Settings) {
-	if before.Mono != after.Mono {
-		s.player.SetMono(after.Mono)
+	if before.MonoMode != after.MonoMode {
+		s.player.SetMonoMode(after.MonoMode)
 	}
 	if before.Repeat != after.Repeat {
 		s.player.SetRepeat(after.Repeat)

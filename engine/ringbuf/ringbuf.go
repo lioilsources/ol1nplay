@@ -112,11 +112,21 @@ func (r *Ring) Reset() { C.rb_reset(r.p) }
 // ResetStats zeroes the counters (new track or device).
 func (r *Ring) ResetStats() { C.rb_reset_stats(r.p) }
 
-// SetMono toggles the consumer-side downmix.
-func (r *Ring) SetMono(on bool) { C.rb_set_mono(r.p, cbool(on)) }
+// MonoMode is what the consumer does with the channels.
+type MonoMode int
 
-// Mono reports the current flag.
-func (r *Ring) Mono() bool { return C.rb_get_mono(r.p) != 0 }
+const (
+	Stereo    MonoMode = iota // untouched
+	Mono                      // (L+R)/2 into every channel
+	MonoLeft                  // (L+R)/2 into the left channel, silence in the others
+	MonoRight                 // (L+R)/2 into the right channel, silence in the others
+)
+
+// SetMonoMode selects the consumer-side downmix.
+func (r *Ring) SetMonoMode(m MonoMode) { C.rb_set_mono(r.p, C.int(m)) }
+
+// MonoMode reports the current mode.
+func (r *Ring) MonoMode() MonoMode { return MonoMode(C.rb_get_mono(r.p)) }
 
 // SetMuted makes the consumer emit silence while keeping the device running (pause).
 func (r *Ring) SetMuted(on bool) { C.rb_set_muted(r.p, cbool(on)) }
@@ -162,4 +172,26 @@ func (r *Ring) ReadInterleaved(dst []byte) int {
 		return 0
 	}
 	return int(C.rb_read_interleaved(r.p, unsafe.Pointer(&dst[0]), C.uint32_t(frames)))
+}
+
+// ReadPlanar is the consumer path ASIO uses (one buffer per channel),
+// exposed for tests. Each dst must hold the same whole number of samples.
+func (r *Ring) ReadPlanar(dsts [][]byte) int {
+	if len(dsts) != r.channels || len(dsts[0]) == 0 {
+		return 0
+	}
+	frames := len(dsts[0]) / r.typ.Bytes()
+	ptrs := (*[64]unsafe.Pointer)(C.malloc(C.size_t(len(dsts)) * C.size_t(unsafe.Sizeof(unsafe.Pointer(nil)))))
+	defer C.free(unsafe.Pointer(ptrs))
+	tmp := make([]unsafe.Pointer, len(dsts))
+	for c := range dsts {
+		tmp[c] = C.CBytes(dsts[c])
+		ptrs[c] = tmp[c]
+	}
+	n := int(C.rb_read_deinterleaved(r.p, (*unsafe.Pointer)(unsafe.Pointer(ptrs)), C.uint32_t(frames)))
+	for c := range dsts {
+		copy(dsts[c], unsafe.Slice((*byte)(tmp[c]), len(dsts[c])))
+		C.free(tmp[c])
+	}
+	return n
 }

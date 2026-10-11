@@ -142,6 +142,9 @@ type loaded struct {
 	// inRAM reports whether the source is fully resident (for the UI's
 	// "preloaded" flag and RAM accounting).
 	inRAM bool
+	// wave is the seek bar's loudness overview; nil for streamed and DSD
+	// tracks.
+	wave *protocol.Waveform
 }
 
 // loadTrack decodes a track into RAM (or opens it for streaming when it is
@@ -169,5 +172,9 @@ func loadTrack(t protocol.Track, mode decode.DSDMode, ramLimit int64, onProgress
 	if t.CueFile != "" {
 		src = newWindow(src, t.CueStart, t.CueEnd)
 	}
-	return &loaded{track: t, src: src, inRAM: inRAM}, nil
+	l := &loaded{track: t, src: src, inRAM: inRAM}
+	if inRAM {
+		l.wave = computeWaveform(t.Path, src)
+	}
+	return l, nil
 }

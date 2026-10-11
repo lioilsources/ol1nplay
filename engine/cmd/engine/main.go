@@ -3,7 +3,7 @@
 //
 //	ol1nplay-engine                      # serve (default)
 //	ol1nplay-engine serve [-port 7777] [-root DIR ...] [-qr]
-//	ol1nplay-engine play [-backend asio] [-device ID] [-mono] [-ab A,B(ms)] FILE...
+//	ol1nplay-engine play [-backend asio] [-device ID] [-mono MODE] [-ab A,B(ms)] FILE...
 //	ol1nplay-engine devices
 //	ol1nplay-engine probe FILE
 //	ol1nplay-engine sysmode status|apply|restore
@@ -275,7 +275,7 @@ func play(args []string) error {
 	fs := flag.NewFlagSet("play", flag.ExitOnError)
 	backend := fs.String("backend", "", "output backend (asio, wasapi, coreaudio, null)")
 	device := fs.String("device", "", "device id (see `devices`)")
-	mono := fs.Bool("mono", false, "mono downmix")
+	mono := fs.String("mono", "stereo", "stereo | mono | left | right (mono downmix, optionally through one speaker)")
 	ab := fs.String("ab", "", "A-B loop in ms, e.g. 12000,15500")
 	dsd := fs.String("dsd", "native", "DSD mode: native|dop|pcm")
 	ram := fs.Int("ram", 512, "RAM limit MB before streaming")
@@ -305,7 +305,7 @@ func play(args []string) error {
 	if err := p.PlayPaths(files, 0); err != nil {
 		return err
 	}
-	p.SetMono(*mono)
+	p.SetMonoMode(*mono)
 	if *ab != "" {
 		parts := strings.Split(*ab, ",")
 		if len(parts) == 2 {

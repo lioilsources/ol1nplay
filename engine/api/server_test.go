@@ -227,6 +227,11 @@ func TestHelloStateAndPlay(t *testing.T) {
 	if s.Output.BitPerfect {
 		t.Fatal("mono must clear bit-perfect")
 	}
+	c.must(protocol.Request{Type: protocol.CmdMono, Mode: protocol.MonoRight})
+	s = c.waitState(func(s protocol.State) bool { return s.MonoMode == protocol.MonoRight }, 2*time.Second)
+	if !s.Mono || s.Output.BitPerfect {
+		t.Fatalf("right-speaker mono: mono=%v bitPerfect=%v", s.Mono, s.Output.BitPerfect)
+	}
 	c.must(protocol.Request{Type: protocol.CmdABSetA, Samples: 1000})
 	c.must(protocol.Request{Type: protocol.CmdABSetB, Samples: 9000})
 	s = c.waitState(func(s protocol.State) bool { return s.AB.Active }, 2*time.Second)

@@ -124,6 +124,8 @@ func (s *Store) Update(f func(*protocol.Settings)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	f(&s.cur)
+	s.cur.MonoMode = protocol.NormalizeMonoMode(s.cur.MonoMode)
+	s.cur.Mono = s.cur.MonoMode != protocol.MonoStereo
 	return s.saveLocked()
 }
 
@@ -158,11 +160,24 @@ func mergeJSON(dst *protocol.Settings, raw []byte) error {
 	for k, v := range patch {
 		m[k] = v
 	}
+	// A client that only knows the stereo/mono switch sends the bare bool.
+	if _, ok := patch["mono"]; ok {
+		if _, ok := patch["monoMode"]; !ok {
+			delete(m, "monoMode")
+		}
+	}
 	merged, _ := json.Marshal(m)
 	return json.Unmarshal(merged, dst)
 }
 
 func validate(s *protocol.Settings) error {
+	// MonoMode is the setting and Mono mirrors it. Only a missing mode (a
+	// file from 0.1, or a patch that sent the bare bool) reads the bool.
+	if s.MonoMode == "" && s.Mono {
+		s.MonoMode = protocol.MonoBoth
+	}
+	s.MonoMode = protocol.NormalizeMonoMode(s.MonoMode)
+	s.Mono = s.MonoMode != protocol.MonoStereo
 	switch s.Repeat {
 	case "", "off", "one", "all":
 	default:
@@ -188,6 +203,7 @@ type Resume struct {
 	Index      int      `json:"index"`
 	PositionMs int64    `json:"positionMs"`
 	Mono       bool     `json:"mono"`
+	MonoMode   string   `json:"monoMode,omitempty"`
 }
 
 func loadResume(dir string) (Resume, bool) {

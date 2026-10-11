@@ -10,7 +10,8 @@
  * Real-time rules for the consumer side (rb_read_*):
  *   - no allocation, no locks, no syscalls, no logging
  *   - underrun → zero-fill and count; never block
- *   - mono downmix is the only arithmetic allowed, and only when asked
+ *   - mono downmix is the only arithmetic allowed, and only when asked;
+ *     routing that mix to a single speaker only writes zeros to the other
  *
  * The producer (Go feeder goroutine) owns write_pos, the consumer (audio
  * callback) owns read_pos. Both are 64-bit monotonic frame counters; the
@@ -37,6 +38,13 @@ enum rb_sample_type {
     RB_DSD8  = 6,  /* 8 DSD bits per byte, MSB first, per channel */
 };
 
+enum rb_mono_mode {
+    RB_STEREO     = 0,  /* untouched                                   */
+    RB_MONO       = 1,  /* (L+R)/2 into every channel                  */
+    RB_MONO_LEFT  = 2,  /* (L+R)/2 into channel 0, silence elsewhere   */
+    RB_MONO_RIGHT = 3,  /* (L+R)/2 into channel 1, silence elsewhere   */
+};
+
 typedef struct rb {
     _Atomic uint64_t write_pos;      /* frames produced so far           */
     _Atomic uint64_t read_pos;       /* frames consumed so far           */
@@ -48,7 +56,7 @@ typedef struct rb {
     int      sample_type;            /* enum rb_sample_type              */
 
     /* control flags written by Go, read by the callback (atomic)        */
-    _Atomic int mono;                /* 1 = downmix (L+R)/2 into both    */
+    _Atomic int mono;                /* enum rb_mono_mode                */
     _Atomic int muted;               /* 1 = output silence (pause)       */
 
     /* statistics written by the callback, read by Go                    */
@@ -206,6 +214,18 @@ static inline void rb__mono_frame(uint8_t *f, int type, uint32_t ch) {
     }
 }
 
+/* One frame through a mono mode: the downmix, then silence in every
+ * channel but the chosen one for the single-speaker modes. DSD is left
+ * alone throughout — zero bytes are not DSD silence. */
+static inline void rb__mono_apply(uint8_t *f, int type, uint32_t ch, uint32_t sb, int mode) {
+    if (type == RB_DSD8) return;
+    rb__mono_frame(f, type, ch);
+    if (mode == RB_MONO_LEFT || mode == RB_MONO_RIGHT) {
+        uint32_t keep = mode == RB_MONO_LEFT ? 0 : 1, c;
+        for (c = 0; c < ch; c++) if (c != keep) memset(f + c * sb, 0, sb);
+    }
+}
+
 /* Reads `frames` interleaved frames into dst. Short reads are zero-filled
  * and counted as an underrun. Applies mono when requested. Returns the
  * number of real (non-silence) frames delivered. */
@@ -229,9 +249,10 @@ static inline uint32_t rb_read_interleaved(rb_t *rb, void *dst, uint32_t frames)
                    (size_t)(n - first) * rb->frame_bytes);
         }
         atomic_store_explicit(&rb->read_pos, r + n, memory_order_release);
-        if (atomic_load_explicit(&rb->mono, memory_order_relaxed) && rb->channels > 1) {
+        int mono = atomic_load_explicit(&rb->mono, memory_order_relaxed);
+        if (mono != RB_STEREO && rb->channels > 1) {
             uint32_t i;
-            for (i = 0; i < n; i++) rb__mono_frame(d + (size_t)i * rb->frame_bytes, rb->sample_type, rb->channels);
+            for (i = 0; i < n; i++) rb__mono_apply(d + (size_t)i * rb->frame_bytes, rb->sample_type, rb->channels, rb->sample_bytes, mono);
         }
     }
     if (n < frames) {
@@ -257,12 +278,12 @@ static inline uint32_t rb_read_deinterleaved(rb_t *rb, void **dsts, uint32_t fra
     }
     uint32_t avail = rb_fill(rb);
     uint32_t n = frames < avail ? frames : avail;
-    int mono = atomic_load_explicit(&rb->mono, memory_order_relaxed) && ch > 1;
+    int mono = ch > 1 ? atomic_load_explicit(&rb->mono, memory_order_relaxed) : RB_STEREO;
     if (n > 0) {
         uint64_t r = atomic_load_explicit(&rb->read_pos, memory_order_relaxed);
         for (i = 0; i < n; i++) {
             uint8_t *f = rb->data + (size_t)((r + i) & rb->mask) * rb->frame_bytes;
-            if (mono) rb__mono_frame(f, rb->sample_type, ch);
+            if (mono != RB_STEREO) rb__mono_apply(f, rb->sample_type, ch, sb, mono);
             for (c = 0; c < ch; c++) {
                 memcpy((uint8_t *)dsts[c] + (size_t)i * sb, f + c * sb, sb);
             }

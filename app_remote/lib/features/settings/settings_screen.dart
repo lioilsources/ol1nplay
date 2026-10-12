@@ -77,8 +77,8 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Mono is (L+R)/2 – the only DSP. L and R play it '
-                      'through one speaker, to compare the two sides.',
+                      'Mono is (L+R)/2 – the only DSP. L and R play one '
+                      'speaker and mute the other, with or without Mono.',
                     ),
                   ],
                 ),

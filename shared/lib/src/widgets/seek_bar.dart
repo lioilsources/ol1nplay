@@ -144,18 +144,18 @@ class _SeekPainter extends CustomPainter {
   final Color marker;
   final bool thumb;
 
-  /// Mirrored bars: the peak faint, the RMS solid on top; amber up to the
-  /// play position, grey after it.
+  /// A continuous mirrored waveform, one column per pixel: the peak faint,
+  /// the RMS solid on top; amber up to the play position, grey after it.
   void _paintWave(Canvas canvas, Size size, Waveform w) {
     final cy = size.height / 2;
     final fx = size.width * fraction.clamp(0, 1);
-    const pitch = 3.0; // 2 px bar + 1 px gap
+    const pitch = 1.0;
     final n = (size.width / pitch).floor();
     if (n <= 0) return;
     final half = size.height / 2 - 1;
     final paint = Paint();
     for (var i = 0; i < n; i++) {
-      // Each bar shows the loudest of the bins it covers.
+      // Each column shows the loudest of the bins it covers.
       final from = i * w.bins ~/ n;
       final to = ((i + 1) * w.bins ~/ n).clamp(from + 1, w.bins);
       var pk = 0, rm = 0;
@@ -164,13 +164,13 @@ class _SeekPainter extends CustomPainter {
         if (w.rms[b] > rm) rm = w.rms[b];
       }
       final x = i * pitch;
-      final base = x + 1 <= fx ? fill : waveRest;
+      final base = x + 0.5 <= fx ? fill : waveRest;
       final ph = (pk / 255 * half).clamp(1.0, half);
       final rh = (rm / 255 * half).clamp(1.0, half);
       paint.color = base.withValues(alpha: 0.35);
-      canvas.drawRect(Rect.fromLTRB(x, cy - ph, x + 2, cy + ph), paint);
-      paint.color = base.withValues(alpha: x + 1 <= fx ? 1 : 0.7);
-      canvas.drawRect(Rect.fromLTRB(x, cy - rh, x + 2, cy + rh), paint);
+      canvas.drawRect(Rect.fromLTRB(x, cy - ph, x + pitch, cy + ph), paint);
+      paint.color = base.withValues(alpha: x + 0.5 <= fx ? 1 : 0.7);
+      canvas.drawRect(Rect.fromLTRB(x, cy - rh, x + pitch, cy + rh), paint);
     }
   }
 

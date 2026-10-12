@@ -328,7 +328,24 @@ void main() {
     expect(got, MonoMode.left);
     await t.tap(find.text('R'));
     expect(got, MonoMode.right);
-    await t.tap(find.text('Stereo'));
+    await t.tap(find.text('Mono'));
+    expect(got, MonoMode.stereo);
+  });
+
+  testWidgets('L and R work without mono and switch off again', (t) async {
+    String? got;
+    Future<void> show(String mode) => t.pumpWidget(
+      _wrap(MonoModeSwitch(mode: mode, onChanged: (m) => got = m)),
+    );
+    await show(MonoMode.stereo);
+    await t.tap(find.text('R'));
+    expect(got, MonoMode.onlyRight);
+    await show(MonoMode.onlyRight);
+    await t.tap(find.text('L'));
+    expect(got, MonoMode.onlyLeft);
+    await t.tap(find.text('Mono'));
+    expect(got, MonoMode.right);
+    await t.tap(find.text('R'));
     expect(got, MonoMode.stereo);
   });
 

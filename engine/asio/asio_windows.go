@@ -274,15 +274,33 @@ func (b *Backend) Open(id string, want sink.Format, ringFrames int) (sink.Stream
 		var cur C.double
 		C.asio_get_sample_rate(s.d, &cur)
 		if math.Abs(float64(cur)-float64(want.SampleRate)) > 0.5 {
-			if rc := C.asio_set_sample_rate(s.d, C.double(want.SampleRate)); rc != 0 {
+			// A driver that has only just let go of the previous rate can
+			// refuse the first request, so ask a few times before giving up.
+			var rc C.int
+			for try := 0; try < 5; try++ {
+				if rc = C.asio_set_sample_rate(s.d, C.double(want.SampleRate)); rc == 0 {
+					break
+				}
+				time.Sleep(150 * time.Millisecond)
+			}
+			if rc != 0 {
 				return shimErr("setSampleRate", rc)
 			}
-			// Some drivers accept setSampleRate but switch asynchronously;
-			// verify, because playing 96 kHz material at 48 kHz is exactly
-			// the failure this program exists to avoid.
-			C.asio_get_sample_rate(s.d, &cur)
-			if math.Abs(float64(cur)-float64(want.SampleRate)) > 0.5 {
-				return fmt.Errorf("asio: driver reports %.0f Hz after setSampleRate(%d)", float64(cur), want.SampleRate)
+			// Some drivers accept setSampleRate but switch asynchronously —
+			// the hardware clock takes a moment to relock. Wait for the new
+			// rate to be reported rather than failing the track, and still
+			// verify it: playing 96 kHz material at 48 kHz is exactly the
+			// failure this program exists to avoid.
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				C.asio_get_sample_rate(s.d, &cur)
+				if math.Abs(float64(cur)-float64(want.SampleRate)) <= 0.5 {
+					break
+				}
+				if time.Now().After(deadline) {
+					return fmt.Errorf("asio: driver still reports %.0f Hz 2 s after setSampleRate(%d)", float64(cur), want.SampleRate)
+				}
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 

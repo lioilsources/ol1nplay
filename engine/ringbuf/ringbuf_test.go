@@ -29,6 +29,8 @@ func TestMonoModes(t *testing.T) {
 		{Mono, 400, 400},
 		{MonoLeft, 400, 0},
 		{MonoRight, 0, 400},
+		{OnlyLeft, 1000, 0},
+		{OnlyRight, 0, -200},
 	}
 	types := []struct {
 		typ   SampleType

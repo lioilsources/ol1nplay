@@ -1060,6 +1060,10 @@ func ringMono(mode string) ringbuf.MonoMode {
 		return ringbuf.MonoLeft
 	case protocol.MonoRight:
 		return ringbuf.MonoRight
+	case protocol.MonoOnlyLeft:
+		return ringbuf.OnlyLeft
+	case protocol.MonoOnlyRight:
+		return ringbuf.OnlyRight
 	}
 	return ringbuf.Stereo
 }
@@ -1073,6 +1077,10 @@ func monoNote(mode string) string {
 		return "mono downmix → left speaker only"
 	case protocol.MonoRight:
 		return "mono downmix → right speaker only"
+	case protocol.MonoOnlyLeft:
+		return "left channel only, right muted"
+	case protocol.MonoOnlyRight:
+		return "right channel only, left muted"
 	}
 	return ""
 }
@@ -1242,6 +1250,28 @@ func (p *Player) QueueClear() {
 		}
 		p.preloadPath = ""
 		p.notifyQueue()
+	})
+}
+
+// SetFavorite updates the heart on every copy of a track the player holds
+// (the queue and the playing track were read from the library earlier), so
+// clients see it change without reloading anything.
+func (p *Player) SetFavorite(path string, on bool) {
+	p.do(func() {
+		changed := false
+		for i := range p.q.tracks {
+			if p.q.tracks[i].Path == path && p.q.tracks[i].Favorite != on {
+				p.q.tracks[i].Favorite = on
+				changed = true
+			}
+		}
+		if p.cur != nil && p.cur.track.Path == path {
+			p.cur.track.Favorite = on
+			p.dirty = true
+		}
+		if changed {
+			p.notifyQueue()
+		}
 	})
 }
 

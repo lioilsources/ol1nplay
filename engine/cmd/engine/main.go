@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -75,8 +76,39 @@ func main() {
 	}
 }
 
+// logFile is engine.log in the data directory once serve has opened it.
+// The app starts the engine with no console, so without the file a track
+// that would not play leaves nothing to look at afterwards.
+var (
+	logMu   sync.Mutex
+	logFile *os.File
+)
+
 func stderrLog(l protocol.LogLine) {
-	fmt.Fprintf(os.Stderr, "%s %-5s %-8s %s\n", time.UnixMilli(l.At).Format("15:04:05.000"), l.Level, l.Scope, l.Msg)
+	at := time.UnixMilli(l.At)
+	fmt.Fprintf(os.Stderr, "%s %-5s %-8s %s\n", at.Format("15:04:05.000"), l.Level, l.Scope, l.Msg)
+	logMu.Lock()
+	if logFile != nil {
+		fmt.Fprintf(logFile, "%s %-5s %-8s %s\n", at.Format("2006-01-02 15:04:05.000"), l.Level, l.Scope, l.Msg)
+	}
+	logMu.Unlock()
+}
+
+// openLogFile appends to engine.log, keeping one previous file once it
+// passes 2 MB. Failing to open it is not a reason not to play music.
+func openLogFile(dir string) {
+	path := filepath.Join(dir, "engine.log")
+	if st, err := os.Stat(path); err == nil && st.Size() > 2<<20 {
+		_ = os.Remove(path + ".1")
+		_ = os.Rename(path, path+".1")
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	logMu.Lock()
+	logFile = f
+	logMu.Unlock()
 }
 
 type multiFlag []string
@@ -91,6 +123,7 @@ func serve(args []string) error {
 	showQR := fs.Bool("qr", false, "print the pairing QR code when remote is enabled")
 	noLib := fs.Bool("no-library", false, "run without the library (CLI-only playback)")
 	hide := fs.Bool("hide-console", false, "hide the console window (Windows)")
+	parent := fs.Int("parent-pid", 0, "shut down when this process exits (set by the app that started the engine)")
 	var roots multiFlag
 	fs.Var(&roots, "root", "library root (repeatable; persisted)")
 	if err := fs.Parse(args); err != nil {
@@ -102,6 +135,7 @@ func serve(args []string) error {
 	if err := os.MkdirAll(*data, 0o755); err != nil {
 		return err
 	}
+	openLogFile(*data)
 	store, err := api.OpenStore(*data)
 	if err != nil {
 		return err
@@ -154,8 +188,18 @@ func serve(args []string) error {
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	<-sig
-	fmt.Fprintln(os.Stderr, "shutting down")
+	var orphaned <-chan struct{}
+	if *parent > 0 {
+		orphaned = winrt.ParentGone(*parent)
+	}
+	select {
+	case <-sig:
+		fmt.Fprintln(os.Stderr, "shutting down")
+	case <-orphaned:
+		// Whatever happened to the app, music must not keep playing with
+		// nothing left to stop it.
+		fmt.Fprintf(os.Stderr, "process %d that started the engine is gone; shutting down\n", *parent)
+	}
 	srv.Close()
 	if lib != nil {
 		lib.Close()
@@ -275,7 +319,7 @@ func play(args []string) error {
 	fs := flag.NewFlagSet("play", flag.ExitOnError)
 	backend := fs.String("backend", "", "output backend (asio, wasapi, coreaudio, null)")
 	device := fs.String("device", "", "device id (see `devices`)")
-	mono := fs.String("mono", "stereo", "stereo | mono | left | right (mono downmix, optionally through one speaker)")
+	mono := fs.String("mono", "stereo", "stereo | mono | left | right (mono downmix, optionally through one speaker) | onlyLeft | onlyRight (one channel, the other muted)")
 	ab := fs.String("ab", "", "A-B loop in ms, e.g. 12000,15500")
 	dsd := fs.String("dsd", "native", "DSD mode: native|dop|pcm")
 	ram := fs.Int("ram", 512, "RAM limit MB before streaming")

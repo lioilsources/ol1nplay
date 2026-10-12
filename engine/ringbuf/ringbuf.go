@@ -120,6 +120,8 @@ const (
 	Mono                      // (L+R)/2 into every channel
 	MonoLeft                  // (L+R)/2 into the left channel, silence in the others
 	MonoRight                 // (L+R)/2 into the right channel, silence in the others
+	OnlyLeft                  // the left channel as it is, silence in the others
+	OnlyRight                 // the right channel as it is, silence in the others
 )
 
 // SetMonoMode selects the consumer-side downmix.

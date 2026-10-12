@@ -571,16 +571,37 @@ class Queue {
   bool get isEmpty => tracks.isEmpty;
 }
 
-/// What the engine does with the channels. `left` and `right` play the
-/// same downmix through one speaker only — for comparing the two sides of
-/// a system against each other.
+/// What the engine does with the channels: two independent choices, mono
+/// downmix or not, and both speakers or one. `left` and `right` play the
+/// downmix through one speaker only — for comparing the two sides of a
+/// system on the same signal; `onlyLeft` and `onlyRight` play that
+/// channel's own signal and mute the other.
 abstract final class MonoMode {
   static const stereo = 'stereo';
   static const mono = 'mono';
   static const left = 'left';
   static const right = 'right';
+  static const onlyLeft = 'onlyLeft';
+  static const onlyRight = 'onlyRight';
 
-  static const all = [stereo, mono, left, right];
+  static const all = [stereo, mono, left, right, onlyLeft, onlyRight];
+
+  static bool isMono(String mode) =>
+      mode == mono || mode == left || mode == right;
+
+  /// 'L', 'R' or '' for both speakers.
+  static String side(String mode) => switch (mode) {
+    left || onlyLeft => 'L',
+    right || onlyRight => 'R',
+    _ => '',
+  };
+
+  static String of({required bool mono, required String side}) =>
+      switch (side) {
+        'L' => mono ? left : onlyLeft,
+        'R' => mono ? right : onlyRight,
+        _ => mono ? MonoMode.mono : stereo,
+      };
 }
 
 /// A track's loudness overview for the seek bar: one peak and one RMS value

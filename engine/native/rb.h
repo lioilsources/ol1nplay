@@ -43,6 +43,8 @@ enum rb_mono_mode {
     RB_MONO       = 1,  /* (L+R)/2 into every channel                  */
     RB_MONO_LEFT  = 2,  /* (L+R)/2 into channel 0, silence elsewhere   */
     RB_MONO_RIGHT = 3,  /* (L+R)/2 into channel 1, silence elsewhere   */
+    RB_ONLY_LEFT  = 4,  /* channel 0 untouched, silence elsewhere      */
+    RB_ONLY_RIGHT = 5,  /* channel 1 untouched, silence elsewhere      */
 };
 
 typedef struct rb {
@@ -214,14 +216,16 @@ static inline void rb__mono_frame(uint8_t *f, int type, uint32_t ch) {
     }
 }
 
-/* One frame through a mono mode: the downmix, then silence in every
- * channel but the chosen one for the single-speaker modes. DSD is left
- * alone throughout — zero bytes are not DSD silence. */
+/* One frame through a channel mode: the downmix for the mono modes, then
+ * silence in every channel but the chosen one for the single-speaker
+ * modes. The "only" modes skip the downmix, so the surviving channel keeps
+ * its own samples bit for bit. DSD is left alone throughout — zero bytes
+ * are not DSD silence. */
 static inline void rb__mono_apply(uint8_t *f, int type, uint32_t ch, uint32_t sb, int mode) {
     if (type == RB_DSD8) return;
-    rb__mono_frame(f, type, ch);
-    if (mode == RB_MONO_LEFT || mode == RB_MONO_RIGHT) {
-        uint32_t keep = mode == RB_MONO_LEFT ? 0 : 1, c;
+    if (mode <= RB_MONO_RIGHT) rb__mono_frame(f, type, ch);
+    if (mode != RB_MONO) {
+        uint32_t keep = (mode == RB_MONO_LEFT || mode == RB_ONLY_LEFT) ? 0 : 1, c;
         for (c = 0; c < ch; c++) if (c != keep) memset(f + c * sb, 0, sb);
     }
 }

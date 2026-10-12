@@ -124,10 +124,12 @@ Map<Type, Action<Intent>> appActions(WidgetRef ref, FocusNode searchFocus) {
       },
     ),
     MonoIntent: CallbackAction<MonoIntent>(
-      // Stereo → Mono → L → R → Stereo.
+      // Mono on/off; the speaker choice (L / R / both) stays as it is.
       onInvoke: (_) {
-        final i = MonoMode.all.indexOf(ref.read(stateProvider).monoMode);
-        return c.setMonoMode(MonoMode.all[(i + 1) % MonoMode.all.length]);
+        final mode = ref.read(stateProvider).monoMode;
+        return c.setMonoMode(
+          MonoMode.of(mono: !MonoMode.isMono(mode), side: MonoMode.side(mode)),
+        );
       },
     ),
     NextIntent: CallbackAction<NextIntent>(onInvoke: (_) => c.next()),

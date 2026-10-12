@@ -337,24 +337,28 @@ class TrackList extends ConsumerWidget {
                       selected: sel.contains(t.path),
                       showArtist: showArtist || showAlbum,
                       showNumber: !showArtist,
+                      // One click plays. With Ctrl or Shift held a click only
+                      // selects, so several tracks can still be picked for
+                      // the context menu.
                       onTap: () {
                         final keys = HardwareKeyboard.instance;
+                        final ctrl =
+                            keys.isControlPressed || keys.isMetaPressed;
+                        final shift = keys.isShiftPressed;
                         ref
                             .read(selectionProvider.notifier)
-                            .click(
-                              tracks,
-                              t,
-                              ctrl: keys.isControlPressed || keys.isMetaPressed,
-                              shift: keys.isShiftPressed,
-                            );
+                            .click(tracks, t, ctrl: ctrl, shift: shift);
+                        if (ctrl || shift) return;
+                        if (onPlayAt != null) {
+                          onPlayAt!(idx);
+                        } else {
+                          a.playPaths(
+                            context,
+                            tracks.map((x) => x.path).toList(),
+                            index: idx,
+                          );
+                        }
                       },
-                      onDoubleTap: () => onPlayAt != null
-                          ? onPlayAt!(idx)
-                          : a.playPaths(
-                              context,
-                              tracks.map((x) => x.path).toList(),
-                              index: idx,
-                            ),
                       onFavorite: (on) => a.favorite(context, t.path, on),
                       onSecondaryTap: () {
                         final box = context.findRenderObject() as RenderBox;

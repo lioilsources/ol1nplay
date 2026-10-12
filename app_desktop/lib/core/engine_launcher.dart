@@ -92,9 +92,16 @@ class EngineLauncher {
         message.value = 'Starting engine: $path';
         _process = await Process.start(
           path,
-          // The engine is a console program; without this a terminal window
-          // would sit behind the player on Windows.
-          ['serve', if (Platform.isWindows) '-hide-console'],
+          // The engine is a console program; without -hide-console a
+          // terminal window would sit behind the player on Windows. An engine
+          // we start ends with us, however we end: it stops the music when
+          // this process is gone.
+          [
+            'serve',
+            if (Platform.isWindows) '-hide-console',
+            '-parent-pid',
+            '$pid',
+          ],
           mode: ProcessStartMode.detachedWithStdio,
           workingDirectory: File(path).parent.path,
         );

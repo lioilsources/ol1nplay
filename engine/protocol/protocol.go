@@ -78,7 +78,7 @@ const (
 	CmdNext    = "next"
 	CmdPrev    = "prev"
 	CmdSeek    = "seek"    // Samples or Ms (Samples wins if non-zero)
-	CmdMono    = "mono"    // Mode: stereo | mono | left | right (or Bool: true = mono)
+	CmdMono    = "mono"    // Mode: stereo | mono | left | right | onlyLeft | onlyRight (or Bool: true = mono)
 	CmdRepeat  = "repeat"  // Mode: off | one | all
 	CmdShuffle = "shuffle" // Bool
 
@@ -292,7 +292,7 @@ type State struct {
 	Source     Format      `json:"source"` // decoded format (native, untouched)
 	Output     Output      `json:"output"`
 	Mono       bool        `json:"mono"`     // any mode but stereo
-	MonoMode   string      `json:"monoMode"` // "stereo" | "mono" | "left" | "right"
+	MonoMode   string      `json:"monoMode"` // "stereo" | "mono" | "left" | "right" | "onlyLeft" | "onlyRight"
 	AB         ABLoop      `json:"ab"`
 	Repeat     string      `json:"repeat"` // "off" | "one" | "all"
 	Shuffle    bool        `json:"shuffle"`
@@ -448,7 +448,7 @@ type Settings struct {
 	Backend          string   `json:"backend"`
 	Device           string   `json:"device"`
 	Mono             bool     `json:"mono"`     // derived from MonoMode; a bare bool still switches stereo/mono
-	MonoMode         string   `json:"monoMode"` // "stereo" | "mono" | "left" | "right"
+	MonoMode         string   `json:"monoMode"` // "stereo" | "mono" | "left" | "right" | "onlyLeft" | "onlyRight"
 	Repeat           string   `json:"repeat"`
 	Shuffle          bool     `json:"shuffle"`
 	RAMLimitMB       int      `json:"ramLimitMB"`  // above this, stream from disk
@@ -471,19 +471,23 @@ type Settings struct {
 	Theme            string   `json:"theme"` // "system" | "dark" | "black" | "light" – stored here so remote + desktop agree
 }
 
-// Mono modes. "left" and "right" play the same downmix through one speaker
-// only, for comparing the two sides of a system against each other.
+// Channel modes. "left" and "right" play the same downmix through one
+// speaker only, for comparing the two sides of a system against each other;
+// "onlyLeft" and "onlyRight" play that channel's own signal and mute the
+// other one.
 const (
-	MonoStereo = "stereo"
-	MonoBoth   = "mono"
-	MonoLeft   = "left"
-	MonoRight  = "right"
+	MonoStereo    = "stereo"
+	MonoBoth      = "mono"
+	MonoLeft      = "left"
+	MonoRight     = "right"
+	MonoOnlyLeft  = "onlyLeft"
+	MonoOnlyRight = "onlyRight"
 )
 
 // NormalizeMonoMode maps anything unknown (including "") to stereo.
 func NormalizeMonoMode(m string) string {
 	switch m {
-	case MonoBoth, MonoLeft, MonoRight:
+	case MonoBoth, MonoLeft, MonoRight, MonoOnlyLeft, MonoOnlyRight:
 		return m
 	}
 	return MonoStereo

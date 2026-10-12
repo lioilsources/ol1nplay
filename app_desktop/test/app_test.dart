@@ -232,7 +232,7 @@ void main() {
     expect(p.token, 't');
     expect(EngineTarget.fromOverride(''), isNull);
   });
-  testWidgets('seek strip: the mono switch has four positions and M cycles', (
+  testWidgets('seek strip: L and R work with or without mono, M toggles mono', (
     tester,
   ) async {
     await boot(tester);
@@ -255,13 +255,17 @@ void main() {
     final sw = find.byKey(const ValueKey('monoSwitch'));
     await tester.tap(find.descendant(of: sw, matching: find.text('L')));
     await settle(tester);
-    expect(container.read(stateProvider).monoMode, MonoMode.left);
+    // L alone: the left channel as it is, right muted.
+    expect(container.read(stateProvider).monoMode, MonoMode.onlyLeft);
     expect(container.read(stateProvider).mono, isTrue);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyM); // left → right
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM); // mono on, still left
     await settle(tester);
-    expect(container.read(stateProvider).monoMode, MonoMode.right);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyM); // right → stereo
+    expect(container.read(stateProvider).monoMode, MonoMode.left);
+    await tester.tap(find.descendant(of: sw, matching: find.text('L')));
+    await settle(tester);
+    expect(container.read(stateProvider).monoMode, MonoMode.mono);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
     await settle(tester);
     expect(container.read(stateProvider).monoMode, MonoMode.stereo);
   });
@@ -289,5 +293,19 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('favoritesOnly')));
     await settle(tester);
     expect(find.text(other.displayTitle), findsWidgets);
+  });
+
+  testWidgets('one click on a track plays it', (tester) async {
+    await boot(tester);
+    await openAlbum(tester);
+    final listing = container
+        .read(listingProvider('/fake/Music/Nina Simone/Pastel Blues'))
+        .value!;
+    final second = listing.tracks[1];
+    await tester.tap(find.text(second.displayTitle).first);
+    await settle(tester);
+    await settle(tester);
+    expect(container.read(stateProvider).track?.path, second.path);
+    expect(container.read(stateProvider).isPlaying, isTrue);
   });
 }

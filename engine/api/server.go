@@ -1017,9 +1017,9 @@ func (s *Server) dispatch(c *client, r protocol.Request, rawSettings json.RawMes
 	case protocol.CmdFavorites:
 		return s.needLib(func() (any, error) { return s.lib.Favorites(), nil })
 	case protocol.CmdFavoriteAdd:
-		return s.needLib(func() (any, error) { return nil, s.lib.AddFavorite(r.Path) })
+		return s.needLib(func() (any, error) { return nil, s.setFavorite(r.Path, true) })
 	case protocol.CmdFavoriteRemove:
-		return s.needLib(func() (any, error) { return nil, s.lib.RemoveFavorite(r.Path) })
+		return s.needLib(func() (any, error) { return nil, s.setFavorite(r.Path, false) })
 	case protocol.CmdHistory:
 		return s.needLib(func() (any, error) {
 			n := r.Limit
@@ -1179,4 +1179,19 @@ func (s *Server) applySettings(before, after protocol.Settings) {
 	if before.RAMLimitMB != after.RAMLimitMB || before.PreloadNext != after.PreloadNext || before.DSDMode != after.DSDMode || before.WidthExtension != after.WidthExtension {
 		s.logf("info", "api", "decoder/output preferences change on the next track")
 	}
+}
+
+// setFavorite stores the heart and tells the player, whose queue holds its
+// own copies of the tracks.
+func (s *Server) setFavorite(path string, on bool) error {
+	var err error
+	if on {
+		err = s.lib.AddFavorite(path)
+	} else {
+		err = s.lib.RemoveFavorite(path)
+	}
+	if err == nil {
+		s.player.SetFavorite(path, on)
+	}
+	return err
 }

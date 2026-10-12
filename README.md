@@ -57,10 +57,11 @@ anywhere and run `Elfton Player.exe`. For ASIO, install your DAC's own
 - **A-B loop** with sample accuracy; ±10 ms nudges; toggle without losing
   the points. No crossfade by default (it would be DSP).
 - **Mono** downmix as the one permitted DSP, done in double precision in
-  the callback and flagged in the UI as not bit-perfect while on. The
-  switch has four positions — Stereo · Mono · L · R — where L and R send
-  the same mono signal to one speaker only: flip between them (from the
-  phone, in the listening seat) to compare the two sides of a system.
+  the callback and flagged in the UI as not bit-perfect while on.
+- **L and R**, two buttons next to Mono, play one speaker and mute the
+  other. With Mono on, both sides get the same signal in turn — flip
+  between them (from the phone, in the listening seat) to compare the two
+  sides of a system. Without Mono, L or R plays that channel's own signal.
 - **Seek bar drawn as the track's loudness**, across the whole window, so
   a quiet intro is something you can see and skip.
 - **Library** = your folders, nothing else. fsnotify keeps it current,
@@ -198,9 +199,11 @@ app_remote/    Flutter iOS/Android remote
 
 The engine, library, protocol and both apps are tested against each other
 on macOS (null and CoreAudio backends). 0.1.0 has run on one listener's
-Windows 11 machine: it plays, and the phone remote controls it. Which
-backend that was (ASIO or WASAPI) and how it measures are not confirmed
-yet, and the Windows playback mode has not been exercised there at all —
-see `BUILD.md` → "Testing on Windows" for what is still to be checked.
-Everything new in 0.2.0 has unit and widget tests but has not yet run on
-Windows.
+Windows 11 machine through ASIO — a Behringer UMC204HD (UMC ASIO Driver)
+and an SMSL D200: 24/192 WAV went out as 32-bit ASIO with no conversion
+and no underruns, and the phone remote controls it. That is the engine's
+own report of its signal path; nobody has yet captured the output and
+compared it bit for bit. The Windows playback mode has not been exercised
+there (it needs administrator rights) — see `BUILD.md` → "Testing on
+Windows" for what is still to be checked. Everything new in 0.2.x has unit
+and widget tests but has not yet run on Windows.

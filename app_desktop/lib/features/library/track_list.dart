@@ -40,14 +40,18 @@ class TrackListPane extends ConsumerWidget {
       return const _Empty('Select a folder on the left');
     }
     final listing = ref.watch(listingProvider(dir));
+    final favOnly = ref.watch(favoritesOnlyProvider);
     return listing.when(
       loading: () => const _Loading(),
       error: (e, _) => _Error('$e'),
       data: (l) => TrackList(
-        tracks: l.tracks,
+        // Filtered here, so double-click plays just the hearts too.
+        tracks: favOnly ? l.tracks.where((t) => t.favorite).toList() : l.tracks,
         header: _FolderHeader(listing: l),
-        subdirs: l.dirs,
-        emptyLabel: l.dirs.isEmpty ? 'No audio files in this folder' : '',
+        subdirs: favOnly ? const [] : l.dirs,
+        emptyLabel: favOnly
+            ? 'No favorites in this folder'
+            : (l.dirs.isEmpty ? 'No audio files in this folder' : ''),
       ),
     );
   }
@@ -160,6 +164,7 @@ class _FolderHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final client = ref.watch(clientProvider);
     final a = ref.read(actionsProvider);
+    final favOnly = ref.watch(favoritesOnlyProvider);
     final first = listing.tracks.isEmpty ? null : listing.tracks.first;
     final album = first?.album ?? '';
     final artist = first?.albumArtist.isNotEmpty == true
@@ -186,6 +191,18 @@ class _FolderHeader extends ConsumerWidget {
           ? listing.dir
           : '${parts.join(' · ')}  ·  ${listing.dir}',
       actions: [
+        if (favOnly || listing.tracks.any((t) => t.favorite))
+          IconButton(
+            key: const ValueKey('favoritesOnly'),
+            tooltip: favOnly ? 'Show all tracks' : 'Show favorites only',
+            isSelected: favOnly,
+            icon: Icon(
+              favOnly ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 16,
+              color: favOnly ? Theme.of(context).colorScheme.primary : null,
+            ),
+            onPressed: () => ref.read(favoritesOnlyProvider.notifier).toggle(),
+          ),
         if (listing.parent.isNotEmpty)
           IconButton(
             tooltip: 'Up',

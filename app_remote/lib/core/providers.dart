@@ -291,3 +291,23 @@ void haptic() {
   if (kIsWeb) return;
   unawaited(HapticFeedback.selectionClick().catchError((_) {}));
 }
+
+/// The playing track's loudness overview, fetched once per track; null
+/// when the engine has none (streamed from disk, DSD, nothing playing).
+final waveformProvider = FutureProvider<Waveform?>((ref) async {
+  final path = ref.watch(engineStateProvider.select((s) => s?.waveform ?? ''));
+  if (path.isEmpty) return null;
+  final w = await ref.watch(clientProvider).waveform(path);
+  return w.isEmpty ? null : w;
+});
+
+/// Folder listings show only the tracks marked with a heart.
+class FavoritesOnlyNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) => state = v;
+}
+
+final favoritesOnlyProvider = NotifierProvider<FavoritesOnlyNotifier, bool>(
+  FavoritesOnlyNotifier.new,
+);

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'commands.dart';
 import 'json_util.dart';
 import 'library_models.dart';
@@ -568,6 +571,58 @@ class Queue {
   bool get isEmpty => tracks.isEmpty;
 }
 
+/// What the engine does with the channels. `left` and `right` play the
+/// same downmix through one speaker only — for comparing the two sides of
+/// a system against each other.
+abstract final class MonoMode {
+  static const stereo = 'stereo';
+  static const mono = 'mono';
+  static const left = 'left';
+  static const right = 'right';
+
+  static const all = [stereo, mono, left, right];
+}
+
+/// A track's loudness overview for the seek bar: one peak and one RMS value
+/// per bin across its length, 0..255 on a square-root amplitude scale.
+class Waveform {
+  const Waveform({this.path = '', required this.peak, required this.rms});
+
+  final String path;
+  final Uint8List peak;
+  final Uint8List rms;
+
+  static final empty = Waveform(peak: Uint8List(0), rms: Uint8List(0));
+
+  bool get isEmpty => peak.isEmpty || rms.length != peak.length;
+  int get bins => peak.length;
+
+  factory Waveform.fromJson(Json j) {
+    Uint8List bytes(String k) {
+      final v = j[k];
+      if (v is! String || v.isEmpty) return Uint8List(0);
+      try {
+        return base64Decode(v);
+      } on FormatException {
+        return Uint8List(0);
+      }
+    }
+
+    return Waveform(
+      path: str(j, 'path'),
+      peak: bytes('peak'),
+      rms: bytes('rms'),
+    );
+  }
+
+  Json toJson() => {
+    'path': path,
+    'bins': bins,
+    'peak': base64Encode(peak),
+    'rms': base64Encode(rms),
+  };
+}
+
 /// Full now-playing snapshot.
 class EngineState {
   const EngineState({
@@ -580,6 +635,8 @@ class EngineState {
     this.source = Format.empty,
     this.output = Output.empty,
     this.mono = false,
+    this.monoMode = MonoMode.stereo,
+    this.waveform = '',
     this.ab = ABLoop.none,
     this.repeat = Repeat.off,
     this.shuffle = false,
@@ -588,6 +645,7 @@ class EngineState {
     this.nextTrack,
     this.preloaded = false,
     this.ramBytes = 0,
+    this.ramLocked = false,
     this.gain = '0 dB',
     this.sysmode = Sysmode.empty,
     this.sleep,
@@ -611,6 +669,13 @@ class EngineState {
   final Format source;
   final Output output;
   final bool mono;
+
+  /// See [MonoMode]. [mono] is true for every mode but stereo.
+  final String monoMode;
+
+  /// Path of the track whose [Waveform] can be fetched now; empty when the
+  /// playing track has none (streamed from disk, DSD, or nothing playing).
+  final String waveform;
   final ABLoop ab;
 
   /// See [Repeat].
@@ -627,6 +692,9 @@ class EngineState {
 
   /// Bytes of PCM resident.
   final int ramBytes;
+
+  /// The resident PCM is pinned in physical RAM ([Settings.lockMemory]).
+  final bool ramLocked;
 
   /// Always "0 dB" – there is no volume.
   final String gain;
@@ -652,6 +720,13 @@ class EngineState {
       source: Format.fromJson(obj(j, 'source') ?? const {}),
       output: Output.fromJson(obj(j, 'output') ?? const {}),
       mono: boolean(j, 'mono'),
+      // An engine older than 0.2 only sends the bool.
+      monoMode: str(
+        j,
+        'monoMode',
+        boolean(j, 'mono') ? MonoMode.mono : MonoMode.stereo,
+      ),
+      waveform: str(j, 'waveform'),
       ab: ABLoop.fromJson(obj(j, 'ab') ?? const {}),
       repeat: str(j, 'repeat', Repeat.off),
       shuffle: boolean(j, 'shuffle'),
@@ -660,6 +735,7 @@ class EngineState {
       nextTrack: n == null ? null : Track.fromJson(n),
       preloaded: boolean(j, 'preloaded'),
       ramBytes: integer(j, 'ramBytes'),
+      ramLocked: boolean(j, 'ramLocked'),
       gain: str(j, 'gain', '0 dB'),
       sysmode: Sysmode.fromJson(obj(j, 'sysmode') ?? const {}),
       sleep: s == null ? null : SleepTimer.fromJson(s),
@@ -678,6 +754,8 @@ class EngineState {
     'source': source.toJson(),
     'output': output.toJson(),
     'mono': mono,
+    'monoMode': monoMode,
+    'waveform': waveform,
     'ab': ab.toJson(),
     'repeat': repeat,
     'shuffle': shuffle,
@@ -686,6 +764,7 @@ class EngineState {
     'nextTrack': nextTrack?.toJson(),
     'preloaded': preloaded,
     'ramBytes': ramBytes,
+    'ramLocked': ramLocked,
     'gain': gain,
     'sysmode': sysmode.toJson(),
     'sleep': sleep?.toJson(),
@@ -704,6 +783,8 @@ class EngineState {
     Format? source,
     Output? output,
     bool? mono,
+    String? monoMode,
+    String? waveform,
     ABLoop? ab,
     String? repeat,
     bool? shuffle,
@@ -712,6 +793,7 @@ class EngineState {
     Track? nextTrack,
     bool? preloaded,
     int? ramBytes,
+    bool? ramLocked,
     String? gain,
     Sysmode? sysmode,
     SleepTimer? sleep,
@@ -729,6 +811,8 @@ class EngineState {
     source: source ?? this.source,
     output: output ?? this.output,
     mono: mono ?? this.mono,
+    monoMode: monoMode ?? this.monoMode,
+    waveform: waveform ?? this.waveform,
     ab: ab ?? this.ab,
     repeat: repeat ?? this.repeat,
     shuffle: shuffle ?? this.shuffle,
@@ -737,6 +821,7 @@ class EngineState {
     nextTrack: nextTrack ?? this.nextTrack,
     preloaded: preloaded ?? this.preloaded,
     ramBytes: ramBytes ?? this.ramBytes,
+    ramLocked: ramLocked ?? this.ramLocked,
     gain: gain ?? this.gain,
     sysmode: sysmode ?? this.sysmode,
     sleep: clearSleep ? null : (sleep ?? this.sleep),

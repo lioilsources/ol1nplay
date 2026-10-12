@@ -92,7 +92,9 @@ class EngineLauncher {
         message.value = 'Starting engine: $path';
         _process = await Process.start(
           path,
-          const ['serve'],
+          // The engine is a console program; without this a terminal window
+          // would sit behind the player on Windows.
+          ['serve', if (Platform.isWindows) '-hide-console'],
           mode: ProcessStartMode.detachedWithStdio,
           workingDirectory: File(path).parent.path,
         );

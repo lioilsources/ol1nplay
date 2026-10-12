@@ -17,6 +17,10 @@ class Settings {
     this.dsdMode = 'native',
     this.widthExtension = true,
     this.bufferPreference = 'preferred',
+    this.lockMemory = false,
+    this.cooltimeSec = 0,
+    this.helperExe = '',
+    this.helperArgs = '',
     this.remoteEnabled = false,
     this.remotePort = 0,
     this.mdns = true,
@@ -50,6 +54,17 @@ class Settings {
 
   /// "preferred" | "max" | "min".
   final String bufferPreference;
+
+  /// Pin decoded tracks in physical RAM.
+  final bool lockMemory;
+
+  /// 0–8 s pause between loading a track and starting from idle.
+  final int cooltimeSec;
+
+  /// Full path of a program the engine starts with itself and stops with
+  /// itself (e.g. MinorityClean). Only the local UI may set it.
+  final String helperExe;
+  final String helperArgs;
   final bool remoteEnabled;
   final int remotePort;
   final bool mdns;
@@ -59,7 +74,7 @@ class Settings {
   final bool scrobble;
   final List<String> roots;
 
-  /// "system" | "dark" | "light".
+  /// "system" | "dark" | "black" | "light".
   final String theme;
 
   static const defaults = Settings();
@@ -77,6 +92,10 @@ class Settings {
     dsdMode: str(j, 'dsdMode', 'native'),
     widthExtension: boolean(j, 'widthExtension'),
     bufferPreference: str(j, 'bufferPreference', 'preferred'),
+    lockMemory: boolean(j, 'lockMemory'),
+    cooltimeSec: integer(j, 'cooltimeSec'),
+    helperExe: str(j, 'helperExe'),
+    helperArgs: str(j, 'helperArgs'),
     remoteEnabled: boolean(j, 'remoteEnabled'),
     remotePort: integer(j, 'remotePort'),
     mdns: boolean(j, 'mdns'),
@@ -99,6 +118,10 @@ class Settings {
     'dsdMode': dsdMode,
     'widthExtension': widthExtension,
     'bufferPreference': bufferPreference,
+    'lockMemory': lockMemory,
+    'cooltimeSec': cooltimeSec,
+    'helperExe': helperExe,
+    'helperArgs': helperArgs,
     'remoteEnabled': remoteEnabled,
     'remotePort': remotePort,
     'mdns': mdns,
@@ -135,6 +158,10 @@ class Settings {
     String? dsdMode,
     bool? widthExtension,
     String? bufferPreference,
+    bool? lockMemory,
+    int? cooltimeSec,
+    String? helperExe,
+    String? helperArgs,
     bool? remoteEnabled,
     int? remotePort,
     bool? mdns,
@@ -155,6 +182,10 @@ class Settings {
     dsdMode: dsdMode ?? this.dsdMode,
     widthExtension: widthExtension ?? this.widthExtension,
     bufferPreference: bufferPreference ?? this.bufferPreference,
+    lockMemory: lockMemory ?? this.lockMemory,
+    cooltimeSec: cooltimeSec ?? this.cooltimeSec,
+    helperExe: helperExe ?? this.helperExe,
+    helperArgs: helperArgs ?? this.helperArgs,
     remoteEnabled: remoteEnabled ?? this.remoteEnabled,
     remotePort: remotePort ?? this.remotePort,
     mdns: mdns ?? this.mdns,

@@ -77,6 +77,7 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
                       segments: const [
                         ButtonSegment(value: 'system', label: Text('System')),
                         ButtonSegment(value: 'dark', label: Text('Dark')),
+                        ButtonSegment(value: 'black', label: Text('Black')),
                         ButtonSegment(value: 'light', label: Text('Light')),
                       ],
                       selected: {s.theme},
@@ -122,6 +123,84 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
                     subtitle: const Text('Reopen the last queue and position'),
                     value: s.resumeOnStart,
                     onChanged: (v) => _save(s.copyWith(resumeOnStart: v)),
+                  ),
+                  _section(context, 'Rituals'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    child: Text(
+                      'Borrowed from Bug head. With an asynchronous USB DAC '
+                      'none of this changes the bits the DAC receives; only '
+                      'the RAM lock has an engineering reason. All off by '
+                      'default.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  SwitchListTile(
+                    key: const ValueKey('lockMemory'),
+                    title: const Text('Lock audio in RAM'),
+                    subtitle: const Text(
+                      'Pins each decoded track in physical memory, so Windows '
+                      'cannot page it out while it plays',
+                    ),
+                    value: s.lockMemory,
+                    onChanged: (v) => _save(s.copyWith(lockMemory: v)),
+                  ),
+                  ListTile(
+                    title: const Text('Memory cooltime'),
+                    subtitle: Text(
+                      s.cooltimeSec == 0
+                          ? 'Off — playback starts as soon as the track is loaded'
+                          : 'Waits ${s.cooltimeSec} s after loading before a '
+                                'start from silence. Gapless transitions are '
+                                'never delayed.',
+                    ),
+                    trailing: SizedBox(
+                      width: 180,
+                      child: Slider(
+                        key: const ValueKey('cooltime'),
+                        value: s.cooltimeSec.toDouble().clamp(0, 8),
+                        max: 8,
+                        divisions: 8,
+                        label: '${s.cooltimeSec} s',
+                        onChanged: (v) =>
+                            _save(s.copyWith(cooltimeSec: v.round())),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    title: const Text('Helper program'),
+                    subtitle: Text(
+                      s.helperExe.isEmpty
+                          ? 'None. A program of yours (for example '
+                                'MinorityClean.exe) that the engine starts '
+                                'with itself and stops when it quits. Not '
+                                'part of Elfton Player.'
+                          : '${s.helperExe} ${s.helperArgs}'.trim(),
+                      style: s.helperExe.isEmpty
+                          ? null
+                          : Ol1nTheme.mono(context, size: 11),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (s.helperExe.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Remove',
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () => _save(
+                              s.copyWith(helperExe: '', helperArgs: ''),
+                            ),
+                          ),
+                        TextButton(
+                          key: const ValueKey('helperChoose'),
+                          onPressed: () => _editHelper(s),
+                          child: const Text('Choose'),
+                        ),
+                      ],
+                    ),
                   ),
                   _section(context, 'Output format'),
                   ListTile(
@@ -284,6 +363,65 @@ class _SettingsDialogState extends ConsumerState<_SettingsDialog> {
       ),
     ),
   );
+
+  /// Full path + arguments. A plain text field rather than only a file
+  /// picker: the engine may be on another machine, where a local picker
+  /// would browse the wrong disk.
+  Future<void> _editHelper(Settings s) async {
+    final exe = TextEditingController(text: s.helperExe);
+    final args = TextEditingController(text: s.helperArgs);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Helper program'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: exe,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Full path on the engine\'s computer',
+                  hintText: r'C:\Audio\MinorityClean 61 x64\MinorityClean.exe',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: args,
+                decoration: const InputDecoration(
+                  labelText: 'Arguments (optional)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Started with normal rights when the engine starts and '
+                'stopped when it quits. A copy you run yourself or as a '
+                'service is left alone.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _save(
+        s.copyWith(helperExe: exe.text.trim(), helperArgs: args.text.trim()),
+      );
+    }
+  }
 
   Future<void> _editOverride(Prefs prefs) async {
     final ctl = TextEditingController(text: prefs.engineOverride);

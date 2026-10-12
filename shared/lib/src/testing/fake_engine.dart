@@ -142,7 +142,7 @@ class FakeEngine {
       );
 
   ServerInfo get serverInfo => ServerInfo(
-    name: 'Ol1nPlay (fake)',
+    name: 'Elfton Player (fake)',
     version: '0.0.0-fake',
     protocolVersion: protocolVersion,
     os: Platform.operatingSystem,
@@ -275,8 +275,12 @@ class FakeEngine {
         );
         return null;
       case Cmd.mono:
-        _set(_state.copyWith(mono: r.flag ?? false));
-        _settings = _settings.copyWith(mono: r.flag ?? false);
+        final mode = (r.mode ?? '').isNotEmpty
+            ? r.mode!
+            : (r.flag ?? true ? MonoMode.mono : MonoMode.stereo);
+        final on = mode != MonoMode.stereo;
+        _set(_state.copyWith(mono: on, monoMode: mode));
+        _settings = _settings.copyWith(mono: on);
         return null;
       case Cmd.repeat:
         _set(_state.copyWith(repeat: r.mode ?? Repeat.off));
@@ -509,6 +513,8 @@ class FakeEngine {
         return _settings.toJson();
       case Cmd.lyrics:
         return _lyricsFor(_find(r.path)).toJson();
+      case Cmd.waveform:
+        return _waveformFor(r.path ?? '').toJson();
       case Cmd.cover:
         final t = _find(r.path);
         return t.cover.isEmpty
@@ -591,6 +597,8 @@ class FakeEngine {
           exclusive: true,
         ),
         mono: _state.mono,
+        monoMode: _state.monoMode,
+        waveform: t.path,
         repeat: _state.repeat,
         shuffle: _state.shuffle,
         queueIndex: _queue.index,
@@ -682,6 +690,21 @@ class FakeEngine {
   void _refreshTrackInState() {
     final t = _state.track;
     if (t != null) _set(_state.copyWith(track: _decorate(t)));
+  }
+
+  /// A quiet intro, a swell and a fade: enough shape to see the bar work.
+  Waveform _waveformFor(String path) {
+    const bins = 256;
+    final peak = Uint8List(bins);
+    final rms = Uint8List(bins);
+    for (var i = 0; i < bins; i++) {
+      final x = i / (bins - 1);
+      final env = x < 0.1 ? 0.15 : (x > 0.9 ? (1 - x) * 8 : 0.8);
+      final wobble = 0.75 + 0.25 * ((i * 37) % 17) / 16;
+      peak[i] = (255 * env * wobble).round().clamp(0, 255);
+      rms[i] = (peak[i] * 0.6).round();
+    }
+    return Waveform(path: path, peak: peak, rms: rms);
   }
 
   Lyrics _lyricsFor(Track t) {

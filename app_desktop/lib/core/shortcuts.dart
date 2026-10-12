@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:ol1nplay_shared/ol1nplay_shared.dart';
+
 import 'providers.dart';
 
 /// Keyboard intents. Bound once at the shell; text fields swallow what
@@ -122,7 +124,11 @@ Map<Type, Action<Intent>> appActions(WidgetRef ref, FocusNode searchFocus) {
       },
     ),
     MonoIntent: CallbackAction<MonoIntent>(
-      onInvoke: (_) => c.setMono(!ref.read(stateProvider).mono),
+      // Stereo → Mono → L → R → Stereo.
+      onInvoke: (_) {
+        final i = MonoMode.all.indexOf(ref.read(stateProvider).monoMode);
+        return c.setMonoMode(MonoMode.all[(i + 1) % MonoMode.all.length]);
+      },
     ),
     NextIntent: CallbackAction<NextIntent>(onInvoke: (_) => c.next()),
     PrevIntent: CallbackAction<PrevIntent>(onInvoke: (_) => c.prev()),

@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ol1nplay_desktop/app.dart';
+import 'package:ol1nplay_desktop/core/actions.dart';
 import 'package:ol1nplay_desktop/core/engine_target.dart';
 import 'package:ol1nplay_desktop/core/prefs.dart';
 import 'package:ol1nplay_desktop/core/providers.dart';
@@ -227,5 +231,63 @@ void main() {
     expect(p.local, isTrue);
     expect(p.token, 't');
     expect(EngineTarget.fromOverride(''), isNull);
+  });
+  testWidgets('seek strip: the mono switch has four positions and M cycles', (
+    tester,
+  ) async {
+    await boot(tester);
+    final client = container.read(clientProvider);
+    final tracks = FakeEngine.demoTracks();
+    // Fired, not awaited: the reply only arrives while settle() gives the
+    // socket real time.
+    unawaited(client.playPaths(tracks.map((t) => t.path).toList(), index: 0));
+    await settle(tester);
+    await settle(tester);
+    expect(find.byKey(const ValueKey('seekStrip')), findsOneWidget);
+    // The strip spans the window, not just the right-hand pane.
+    expect(
+      tester.getSize(find.byKey(const ValueKey('seekStrip'))).width,
+      greaterThan(700),
+    );
+    // Once the track is known its loudness overview is fetched.
+    expect(container.read(waveformProvider).value?.isEmpty, isFalse);
+
+    final sw = find.byKey(const ValueKey('monoSwitch'));
+    await tester.tap(find.descendant(of: sw, matching: find.text('L')));
+    await settle(tester);
+    expect(container.read(stateProvider).monoMode, MonoMode.left);
+    expect(container.read(stateProvider).mono, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM); // left → right
+    await settle(tester);
+    expect(container.read(stateProvider).monoMode, MonoMode.right);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM); // right → stereo
+    await settle(tester);
+    expect(container.read(stateProvider).monoMode, MonoMode.stereo);
+  });
+
+  testWidgets('folder view can show only the hearted tracks', (tester) async {
+    await boot(tester);
+    await openAlbum(tester);
+    final listing = container
+        .read(listingProvider('/fake/Music/Nina Simone/Pastel Blues'))
+        .value!;
+    expect(listing.tracks.length, greaterThan(1));
+    final fav = listing.tracks.first;
+    final other = listing.tracks.last;
+    // No hearts yet: nothing to filter by, so no button.
+    expect(find.byKey(const ValueKey('favoritesOnly')), findsNothing);
+
+    unawaited(container.read(actionsProvider).favorite(null, fav.path, true));
+    await settle(tester);
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('favoritesOnly')));
+    await settle(tester);
+    expect(find.text(fav.displayTitle), findsWidgets);
+    expect(find.text(other.displayTitle), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('favoritesOnly')));
+    await settle(tester);
+    expect(find.text(other.displayTitle), findsWidgets);
   });
 }

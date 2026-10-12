@@ -9,6 +9,7 @@ import '../../core/shortcuts.dart';
 import '../library/library_tree.dart';
 import '../now_playing/mini_player.dart';
 import '../now_playing/now_playing_pane.dart';
+import '../now_playing/seek_strip.dart';
 import '../tray/desktop_integration.dart';
 import '../views/middle_views.dart';
 import 'pane_splitter.dart';
@@ -122,6 +123,7 @@ class _ShellState extends ConsumerState<Shell> {
                 ),
               ),
             ),
+            const SeekStrip(),
             if (showLog) const LogDrawer(),
             const StatusBar(),
           ],

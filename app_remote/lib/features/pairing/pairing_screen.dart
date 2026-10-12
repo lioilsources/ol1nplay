@@ -132,7 +132,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
   Future<void> _applyPairingString(String s) async {
     final p = PairingInfo.parse(s);
     if (p == null) {
-      _snack('Not an Ol1nPlay pairing code');
+      _snack('Not an Elfton Player pairing code');
       return;
     }
     await _use(SavedEngine.fromPairing(p));
@@ -149,7 +149,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connect to Ol1nPlay'),
+        title: const Text('Connect to Elfton Player'),
         actions: [
           IconButton(
             tooltip: 'Search again',

@@ -19,6 +19,7 @@ export 'src/widgets/cover_image.dart';
 export 'src/widgets/fmt.dart';
 export 'src/widgets/format_badge.dart';
 export 'src/widgets/lyrics_view.dart';
+export 'src/widgets/mono_switch.dart';
 export 'src/widgets/queue_list.dart';
 export 'src/widgets/seek_bar.dart';
 export 'src/widgets/status_widgets.dart';

@@ -1,4 +1,6 @@
-# Ol1nPlay
+# Elfton Player
+
+*(repository and code name: Ol1nPlay)*
 
 A local music player for Windows 11 whose only priority is the quality of
 the USB output. No streaming, no upsampling, no volume, no EQ. The signal
@@ -23,6 +25,20 @@ touches a sample.
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Install (Windows 11)
+
+In PowerShell — downloads the latest release into
+`%LOCALAPPDATA%\Programs\Elfton Player` and adds Start menu and desktop
+shortcuts; no administrator rights, nothing else to install:
+
+```powershell
+irm https://raw.githubusercontent.com/lioilsources/ol1nplay/main/tools/install.ps1 | iex
+```
+
+Or unpack the zip from [Releases](https://github.com/lioilsources/ol1nplay/releases)
+anywhere and run `Elfton Player.exe`. For ASIO, install your DAC's own
+64-bit ASIO driver; without one the player offers WASAPI exclusive.
+
 ## What it does
 
 - **Bit-perfect ASIO output** in the track's native format. Sample rate and
@@ -41,7 +57,12 @@ touches a sample.
 - **A-B loop** with sample accuracy; ±10 ms nudges; toggle without losing
   the points. No crossfade by default (it would be DSP).
 - **Mono** downmix as the one permitted DSP, done in double precision in
-  the callback and flagged in the UI as not bit-perfect while on.
+  the callback and flagged in the UI as not bit-perfect while on. The
+  switch has four positions — Stereo · Mono · L · R — where L and R send
+  the same mono signal to one speaker only: flip between them (from the
+  phone, in the listening seat) to compare the two sides of a system.
+- **Seek bar drawn as the track's loudness**, across the whole window, so
+  a quiet intro is something you can see and skip.
 - **Library** = your folders, nothing else. fsnotify keeps it current,
   SQLite caches tags and covers, CUE sheets become tracks, M3U playlists
   load and save, .lrc lyrics scroll.
@@ -74,12 +95,51 @@ has to deliver the right bits before they are needed. Given that:
 | Power plan, USB selective suspend, core parking | Prevents a USB device from being suspended or a core from waking late. Same caveat. |
 | Suspending Discord / OneDrive / the indexer | Frees CPU and IO. Same caveat — and it can break those programs. |
 | Mono downmix | Changes the signal on purpose (it is a listening tool, not a quality feature). |
+| Lock audio in RAM | Stops Windows paging a decoded track out while it plays. Prevents underruns on a machine short of memory; same caveat. |
+| Memory cooltime, helper program (MinorityClean) | Nothing measurable. See below. |
 
 The engine shows an underrun counter precisely so you can see whether any
 of the "system" features are doing anything for you: if the counter stays
 at zero with them off, they are not. They are implemented because they
 cannot hurt the bits and because people expect them — not because they
 make a bit-perfect stream more perfect.
+
+## Bug head, MinorityClean and the "rituals"
+
+[Bug head](https://www.softpedia.com/get/Multimedia/Audio/Audio-Players/Bug-head.shtml)
+has a reputation as the best-sounding Windows player, and its author
+credits a list of techniques: averaging the electrical state of the RAM
+chips, a pause after loading, avoiding CALL/RET, 32-bit float output, a
+maximum ASIO buffer. Settings → *Rituals* offers the ones that are cheap,
+reversible and cannot hurt the bits — all off by default:
+
+- **Lock audio in RAM** — pins each decoded track in physical memory
+  (`VirtualLock`). The one item with a plain engineering reason.
+- **Memory cooltime** — waits 0–8 s between loading a track and starting
+  from silence, as Bug head does. Never applied to a gapless transition.
+- **Helper program** — a program of yours that the engine starts with
+  itself and stops when it quits. Point it at `MinorityClean.exe` from the
+  Bug head package to have it running whenever the player is. It is started
+  with normal rights; only the desktop app can set it, never the phone.
+- **Largest ASIO buffer** — Settings → Output format → ASIO buffer size:
+  *Max*.
+
+MinorityClean itself is **not included and will not be**: it is someone
+else's unsigned binary with no licence to redistribute, the same rule that
+keeps the ASIO SDK out of this repository.
+
+Not implemented, on purpose:
+
+- **32-bit float output.** It converts every sample; the opposite of
+  bit-perfect.
+- **A built-in "memory averaging" loop.** Writing patterns to RAM in the
+  background is constant memory traffic and CPU load while music plays.
+- **Rewriting driver DLLs, switching the antivirus off, banning AVX.**
+  Nothing outside the player's own folder is modified, ever.
+
+None of these change what an asynchronous DAC receives — the table above
+applies. If you hear a difference with the helper running, the underrun
+counter and a null test are the ways to find out what changed.
 
 ## Formats
 
@@ -93,7 +153,7 @@ them. Gapless MP3/AAC/Opus uses libavcodec's own delay/padding trimming.
 ol1nplay-engine serve            # start the engine (the desktop app does this for you)
 ol1nplay-engine devices          # list ASIO / WASAPI / CoreAudio devices
 ol1nplay-engine play song.flac   # CLI playback with a live status line
-ol1nplay-engine play -ab 61000,64500 -mono song.flac
+ol1nplay-engine play -ab 61000,64500 -mono left song.flac
 ol1nplay-engine probe song.dsf   # tags + format as JSON
 ol1nplay-engine qr               # pairing QR for the phone remote
 ol1nplay-engine sysmode status   # what the playback mode changed
@@ -136,8 +196,11 @@ app_remote/    Flutter iOS/Android remote
 
 ## Status
 
-The engine, library, protocol and both apps are complete and tested
-against each other on macOS (null and CoreAudio backends). The ASIO and
-WASAPI backends and the Windows playback mode compile and have unit tests
-for everything that does not need a driver; their first contact with real
-hardware is the next milestone (see `BUILD.md` → "Testing on Windows").
+The engine, library, protocol and both apps are tested against each other
+on macOS (null and CoreAudio backends). 0.1.0 has run on one listener's
+Windows 11 machine: it plays, and the phone remote controls it. Which
+backend that was (ASIO or WASAPI) and how it measures are not confirmed
+yet, and the Windows playback mode has not been exercised there at all —
+see `BUILD.md` → "Testing on Windows" for what is still to be checked.
+Everything new in 0.2.0 has unit and widget tests but has not yet run on
+Windows.

@@ -90,7 +90,7 @@ void main() {
 
   test('hello, library, play, mono, A-B, queue, settings, cover', () async {
     final info = client.serverInfo.value!;
-    expect(info.name, 'Ol1nPlay');
+    expect(info.name, 'Elfton Player');
     expect(info.protocolVersion, protocolVersion);
     expect(info.httpPort, port);
     expect(info.backends, contains('null'));

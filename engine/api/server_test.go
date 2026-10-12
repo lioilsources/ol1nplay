@@ -192,7 +192,7 @@ func TestHelloStateAndPlay(t *testing.T) {
 
 	var info protocol.ServerInfo
 	_ = json.Unmarshal(c.must(protocol.Request{Type: protocol.CmdHello}), &info)
-	if info.Name != "Ol1nPlay" || info.ProtocolVersion != protocol.Version || info.HTTPPort != port {
+	if info.Name != "Elfton Player" || info.ProtocolVersion != protocol.Version || info.HTTPPort != port {
 		t.Fatalf("info = %+v", info)
 	}
 
@@ -226,6 +226,11 @@ func TestHelloStateAndPlay(t *testing.T) {
 	s = c.waitState(func(s protocol.State) bool { return s.Mono }, 2*time.Second)
 	if s.Output.BitPerfect {
 		t.Fatal("mono must clear bit-perfect")
+	}
+	c.must(protocol.Request{Type: protocol.CmdMono, Mode: protocol.MonoRight})
+	s = c.waitState(func(s protocol.State) bool { return s.MonoMode == protocol.MonoRight }, 2*time.Second)
+	if !s.Mono || s.Output.BitPerfect {
+		t.Fatalf("right-speaker mono: mono=%v bitPerfect=%v", s.Mono, s.Output.BitPerfect)
 	}
 	c.must(protocol.Request{Type: protocol.CmdABSetA, Samples: 1000})
 	c.must(protocol.Request{Type: protocol.CmdABSetB, Samples: 9000})

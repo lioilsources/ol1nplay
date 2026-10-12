@@ -35,7 +35,7 @@ class WaitingScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Ol1nPlay',
+                      'Elfton Player',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ],
@@ -130,7 +130,9 @@ class WaitingScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Saved. Restart Ol1nPlay to use the new address.'),
+            content: Text(
+              'Saved. Restart Elfton Player to use the new address.',
+            ),
           ),
         );
       }

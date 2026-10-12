@@ -73,6 +73,7 @@ abstract final class Cmd {
   static const settingsGet = 'settings.get';
   static const settingsSet = 'settings.set';
   static const lyrics = 'lyrics';
+  static const waveform = 'waveform';
   static const cover = 'cover';
   static const version = 'version';
   static const shutdown = 'shutdown';

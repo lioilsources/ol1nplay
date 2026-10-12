@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/ol1n/ol1nplay/engine/decode"
+	"github.com/ol1n/ol1nplay/engine/memlock"
 	"github.com/ol1n/ol1nplay/engine/protocol"
 )
 
@@ -25,13 +26,20 @@ type source interface {
 // ramSource is the normal case: the whole track decoded before it starts,
 // so playback does zero IO.
 type ramSource struct {
-	buf *decode.Buffer
+	buf    *decode.Buffer
+	locked bool // PCM is pinned in physical RAM (memlock)
 }
 
 func (r *ramSource) Format() decode.Format { return r.buf.Format }
 func (r *ramSource) Frames() int64         { return r.buf.Frames }
 func (r *ramSource) Bytes() int64          { return r.buf.Bytes() }
-func (r *ramSource) Close()                { r.buf.PCM = nil }
+func (r *ramSource) Close() {
+	if r.locked {
+		memlock.Unlock(r.buf.PCM)
+		r.locked = false
+	}
+	r.buf.PCM = nil
+}
 
 func (r *ramSource) ReadAt(pos int64, dst []byte) (int, error) {
 	fb := int64(r.buf.Format.FrameBytes())
@@ -142,11 +150,18 @@ type loaded struct {
 	// inRAM reports whether the source is fully resident (for the UI's
 	// "preloaded" flag and RAM accounting).
 	inRAM bool
+	// wave is the seek bar's loudness overview; nil for streamed and DSD
+	// tracks.
+	wave *protocol.Waveform
+	// locked: the PCM is pinned in RAM. lockErr is why it is not, when
+	// pinning was asked for and the OS refused.
+	locked  bool
+	lockErr error
 }
 
 // loadTrack decodes a track into RAM (or opens it for streaming when it is
 // larger than ramLimit). CUE windows are applied here.
-func loadTrack(t protocol.Track, mode decode.DSDMode, ramLimit int64, onProgress func(int64)) (*loaded, error) {
+func loadTrack(t protocol.Track, mode decode.DSDMode, ramLimit int64, lock bool, onProgress func(int64)) (*loaded, error) {
 	path := t.Path
 	if t.CueFile != "" {
 		path = t.CueFile
@@ -154,8 +169,16 @@ func loadTrack(t protocol.Track, mode decode.DSDMode, ramLimit int64, onProgress
 	var src source
 	inRAM := true
 	buf, err := decode.DecodeAll(path, mode, ramLimit, onProgress)
+	var ram *ramSource
+	var lockErr error
 	if err == nil {
-		src = &ramSource{buf: buf}
+		ram = &ramSource{buf: buf}
+		if lock {
+			if lockErr = memlock.Lock(buf.PCM); lockErr == nil {
+				ram.locked = true
+			}
+		}
+		src = ram
 	} else if errors.Is(err, decode.ErrTooLarge) {
 		ss, err2 := newStreamSource(path, mode)
 		if err2 != nil {
@@ -169,5 +192,10 @@ func loadTrack(t protocol.Track, mode decode.DSDMode, ramLimit int64, onProgress
 	if t.CueFile != "" {
 		src = newWindow(src, t.CueStart, t.CueEnd)
 	}
-	return &loaded{track: t, src: src, inRAM: inRAM}, nil
+	l := &loaded{track: t, src: src, inRAM: inRAM, lockErr: lockErr}
+	l.locked = ram != nil && ram.locked
+	if inRAM {
+		l.wave = computeWaveform(t.Path, src)
+	}
+	return l, nil
 }

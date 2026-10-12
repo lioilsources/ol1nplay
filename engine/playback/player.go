@@ -39,6 +39,13 @@ type Options struct {
 	// demands it. Default true; it is bit-perfect.
 	WidthExtension bool
 	ABCrossfadeMs  int // 0 = off (it would be DSP)
+	// LockMemory pins each decoded track in physical RAM (no page faults
+	// on the audio path). Best effort; a refusal is logged.
+	LockMemory bool
+	// Cooltime is a pause between loading a track and starting the device
+	// when playback starts from idle — Bug head's "memory cooltime". Never
+	// applied to a gapless transition.
+	Cooltime time.Duration
 
 	// Resolve turns a path into a Track (library lookup). nil = probe.
 	Resolve func(path string) (protocol.Track, error)
@@ -79,7 +86,7 @@ type Player struct {
 	pos     int64   // next source frame to feed
 	state   string
 	paused  bool
-	mono    bool
+	mono    string // protocol.Mono*
 	ab      protocol.ABLoop
 	loadGen int
 
@@ -287,7 +294,7 @@ func (p *Player) ensureStream(f decode.Format) error {
 		p.stream = st
 		p.ring = st.Ring()
 		p.devFormat = st.Format()
-		p.ring.SetMono(p.mono)
+		p.ring.SetMonoMode(ringMono(p.mono))
 		p.ring.SetMuted(p.paused)
 		p.outErr = ""
 		p.thread = st.ThreadInfo()
@@ -611,9 +618,16 @@ func (p *Player) startCurrent() {
 	p.dirty = true
 	mode := p.dsdMode()
 	limit := p.opts.RAMLimit
+	lock, cool := p.opts.LockMemory, p.opts.Cooltime
 	go func() {
-		l, err := loadTrack(t, mode, limit, nil)
+		l, err := loadTrack(t, mode, limit, lock, nil)
+		if err == nil && cool > 0 {
+			time.Sleep(cool)
+		}
 		p.do(func() {
+			if l != nil && l.lockErr != nil {
+				p.log("warn", "could not lock %s in RAM: %v", t.Path, l.lockErr)
+			}
 			if gen != p.loadGen {
 				if l != nil {
 					l.src.Close()
@@ -705,9 +719,13 @@ func (p *Player) kickPreload() {
 	p.preloadPath = t.Path
 	mode := p.dsdMode()
 	limit := p.opts.RAMLimit
+	lock := p.opts.LockMemory
 	go func() {
-		l, err := loadTrack(t, mode, limit, nil)
+		l, err := loadTrack(t, mode, limit, lock, nil)
 		p.do(func() {
+			if l != nil && l.lockErr != nil {
+				p.log("warn", "could not lock %s in RAM: %v", t.Path, l.lockErr)
+			}
 			p.preloading = false
 			if err != nil {
 				p.log("warn", "preload %s: %v", t.Path, err)
@@ -1013,15 +1031,50 @@ func (p *Player) indexOf(t protocol.Track) int {
 	return -1
 }
 
-// SetMono toggles the downmix flag read by the callback.
+// SetMono switches between stereo and the plain downmix.
 func (p *Player) SetMono(on bool) {
+	if on {
+		p.SetMonoMode(protocol.MonoBoth)
+	} else {
+		p.SetMonoMode(protocol.MonoStereo)
+	}
+}
+
+// SetMonoMode sets the downmix mode read by the callback.
+func (p *Player) SetMonoMode(mode string) {
+	mode = protocol.NormalizeMonoMode(mode)
 	p.do(func() {
-		p.mono = on
+		p.mono = mode
 		if p.ring != nil {
-			p.ring.SetMono(on)
+			p.ring.SetMonoMode(ringMono(mode))
 		}
 		p.dirty = true
 	})
+}
+
+func ringMono(mode string) ringbuf.MonoMode {
+	switch mode {
+	case protocol.MonoBoth:
+		return ringbuf.Mono
+	case protocol.MonoLeft:
+		return ringbuf.MonoLeft
+	case protocol.MonoRight:
+		return ringbuf.MonoRight
+	}
+	return ringbuf.Stereo
+}
+
+// monoNote is the conversion-path text for a mono mode ("" for stereo).
+func monoNote(mode string) string {
+	switch mode {
+	case protocol.MonoBoth:
+		return "mono downmix"
+	case protocol.MonoLeft:
+		return "mono downmix → left speaker only"
+	case protocol.MonoRight:
+		return "mono downmix → right speaker only"
+	}
+	return ""
 }
 
 func (p *Player) SetRepeat(mode string) {
@@ -1379,10 +1432,11 @@ func (p *Player) outputSnapshot() protocol.Output {
 		o.Underruns = p.ring.Stats().Underruns
 		o.Exclusive = true
 		if p.conv != nil {
-			o.BitPerfect = p.conv.bitPerfect && !p.mono && !p.dsdPCM
+			note := monoNote(p.mono)
+			o.BitPerfect = p.conv.bitPerfect && note == "" && !p.dsdPCM
 			o.Conversion = p.conv.description
-			if p.mono {
-				o.Conversion += "; mono downmix"
+			if note != "" {
+				o.Conversion += "; " + note
 			}
 			if p.dsdPCM {
 				o.Conversion = "DSD → PCM (FFmpeg), not bit-perfect"
@@ -1409,6 +1463,30 @@ func (p *Player) Stats() protocol.OutputStats {
 		s.LastUnderrunAt = st.LastUnderrunNs / 1e6
 	})
 	return s
+}
+
+// SetRituals changes the memory lock and cooltime for tracks loaded from
+// now on; what is already in RAM stays as it is.
+func (p *Player) SetRituals(lockMemory bool, cooltime time.Duration) {
+	p.do(func() {
+		p.opts.LockMemory = lockMemory
+		p.opts.Cooltime = cooltime
+	})
+}
+
+// Waveform is the loudness overview of a track that is loaded right now
+// (playing, being fed, or preloaded); nil for anything else.
+func (p *Player) Waveform(path string) *protocol.Waveform {
+	var w *protocol.Waveform
+	p.do(func() {
+		for _, l := range []*loaded{p.devCur, p.cur, p.preload} {
+			if l != nil && l.wave != nil && l.wave.Path == path {
+				w = l.wave
+				return
+			}
+		}
+	})
+	return w
 }
 
 // ---- sleep timer
@@ -1450,7 +1528,7 @@ func (p *Player) State() protocol.State {
 
 func (p *Player) stateSnapshot() protocol.State {
 	s := protocol.State{
-		Playback: p.state, Mono: p.mono, AB: p.ab, Repeat: p.q.repeat, Shuffle: p.q.shuffle,
+		Playback: p.state, Mono: monoNote(p.mono) != "", MonoMode: protocol.NormalizeMonoMode(p.mono), AB: p.ab, Repeat: p.q.repeat, Shuffle: p.q.shuffle,
 		QueueIndex: p.q.currentIdx(), QueueLen: p.q.len(), Gain: "0 dB", Sleep: p.sleep,
 		Output: p.outputSnapshot(),
 	}
@@ -1489,6 +1567,10 @@ func (p *Player) stateSnapshot() protocol.State {
 			s.AB.BMs = s.AB.B * 1000 / rate
 		}
 		s.RAMBytes = l.src.Bytes()
+		if l.wave != nil {
+			s.Waveform = l.wave.Path
+		}
+		s.RAMLocked = l.locked
 	}
 	if p.preload != nil {
 		t := p.preload.track

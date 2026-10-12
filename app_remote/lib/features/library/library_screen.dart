@@ -241,10 +241,47 @@ class _DirListing extends ConsumerWidget {
         error: e,
         onRetry: () => ref.invalidate(listingProvider(dir)),
       ),
-      data: (l) {
+      data: (all) {
+        final hasFavorites = all.tracks.any((t) => t.favorite);
+        final favOnly = ref.watch(favoritesOnlyProvider) && hasFavorites;
+        // Filtered here, so tapping a track queues just the hearts too.
+        final l = favOnly
+            ? Listing(
+                dir: all.dir,
+                parent: all.parent,
+                cover: all.cover,
+                dirs: const [],
+                tracks: all.tracks.where((t) => t.favorite).toList(),
+                cue: all.cue,
+              )
+            : all;
         final items = <Widget>[];
         if (l.cover.isNotEmpty || l.tracks.isNotEmpty) {
           items.add(_FolderHeader(listing: l));
+        }
+        if (hasFavorites) {
+          items.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FilterChip(
+                  key: const ValueKey('favoritesOnly'),
+                  avatar: Icon(
+                    favOnly
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 16,
+                  ),
+                  showCheckmark: false,
+                  label: const Text('Favorites only'),
+                  selected: favOnly,
+                  onSelected: (v) =>
+                      ref.read(favoritesOnlyProvider.notifier).set(v),
+                ),
+              ),
+            ),
+          );
         }
         for (final d in l.dirs) {
           items.add(

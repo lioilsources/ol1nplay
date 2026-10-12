@@ -14,10 +14,10 @@ class Ol1nPlayApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     return MaterialApp(
-      title: 'Ol1nPlay',
+      title: 'Elfton Player',
       debugShowCheckedModeBanner: false,
       theme: Ol1nTheme.light(),
-      darkTheme: Ol1nTheme.dark(),
+      darkTheme: Ol1nTheme.darkOfSettings(settings),
       themeMode: Ol1nTheme.modeOfSettings(settings),
       home: const Shell(),
     );

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/ol1n/ol1nplay/engine/protocol"
@@ -124,6 +125,8 @@ func (s *Store) Update(f func(*protocol.Settings)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	f(&s.cur)
+	s.cur.MonoMode = protocol.NormalizeMonoMode(s.cur.MonoMode)
+	s.cur.Mono = s.cur.MonoMode != protocol.MonoStereo
 	return s.saveLocked()
 }
 
@@ -158,11 +161,24 @@ func mergeJSON(dst *protocol.Settings, raw []byte) error {
 	for k, v := range patch {
 		m[k] = v
 	}
+	// A client that only knows the stereo/mono switch sends the bare bool.
+	if _, ok := patch["mono"]; ok {
+		if _, ok := patch["monoMode"]; !ok {
+			delete(m, "monoMode")
+		}
+	}
 	merged, _ := json.Marshal(m)
 	return json.Unmarshal(merged, dst)
 }
 
 func validate(s *protocol.Settings) error {
+	// MonoMode is the setting and Mono mirrors it. Only a missing mode (a
+	// file from 0.1, or a patch that sent the bare bool) reads the bool.
+	if s.MonoMode == "" && s.Mono {
+		s.MonoMode = protocol.MonoBoth
+	}
+	s.MonoMode = protocol.NormalizeMonoMode(s.MonoMode)
+	s.Mono = s.MonoMode != protocol.MonoStereo
 	switch s.Repeat {
 	case "", "off", "one", "all":
 	default:
@@ -172,6 +188,13 @@ func validate(s *protocol.Settings) error {
 	case "", "native", "dop", "pcm":
 	default:
 		return errors.New("dsdMode must be native|dop|pcm")
+	}
+	if s.CooltimeSec < 0 || s.CooltimeSec > 8 {
+		return errors.New("cooltimeSec must be 0–8")
+	}
+	s.HelperExe = strings.TrimSpace(s.HelperExe)
+	if s.HelperExe != "" && !filepath.IsAbs(s.HelperExe) {
+		return errors.New("helperExe must be a full path")
 	}
 	if s.RAMLimitMB < 16 {
 		s.RAMLimitMB = 16
@@ -188,6 +211,7 @@ type Resume struct {
 	Index      int      `json:"index"`
 	PositionMs int64    `json:"positionMs"`
 	Mono       bool     `json:"mono"`
+	MonoMode   string   `json:"monoMode,omitempty"`
 }
 
 func loadResume(dir string) (Resume, bool) {

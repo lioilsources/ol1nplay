@@ -19,7 +19,11 @@ class TransportBar extends StatelessWidget {
     this.iconSize = 24,
     this.playSize = 40,
     this.showToggles = true,
+    this.showMono = true,
   });
+
+  /// False where a [MonoModeSwitch] sits next to the bar instead.
+  final bool showMono;
 
   final EngineState state;
   final VoidCallback? onPrev;
@@ -99,7 +103,8 @@ class TransportBar extends StatelessWidget {
                 ? null
                 : () => onRepeat!(Repeat.nextOf(state.repeat)),
           ),
-          MonoToggle(mono: state.mono, onChanged: onMono, iconSize: iconSize),
+          if (showMono)
+            MonoToggle(mono: state.mono, onChanged: onMono, iconSize: iconSize),
         ],
       ],
     );

@@ -1,6 +1,6 @@
 name: ol1nplay_shared
 description: "Ol1nPlay shared Dart package: wire protocol models, engine WebSocket client, discovery, theme and widgets used by the desktop app and the mobile remote."
-version: 0.1.0
+version: 0.2.0
 publish_to: none
 
 environment:

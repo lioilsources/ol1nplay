@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ol1nPlay Remote</string>
+	<string>Elfton Remote</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -67,7 +67,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Ol1nPlay Remote controls the Ol1nPlay engine on your computer over the local network.</string>
+	<string>Elfton Remote controls the Elfton Player engine on your computer over the local network.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_ol1nplay._tcp</string>

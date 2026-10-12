@@ -28,7 +28,7 @@ class DesktopIntegration with TrayListener, WindowListener {
       final opts = WindowOptions(
         minimumSize: const Size(900, 560),
         size: b == null ? const Size(1280, 800) : Size(b[2], b[3]),
-        title: 'Ol1nPlay',
+        title: 'Elfton Player',
         titleBarStyle: TitleBarStyle.normal,
       );
       await windowManager.waitUntilReadyToShow(opts, () async {
@@ -60,8 +60,8 @@ class DesktopIntegration with TrayListener, WindowListener {
     }
     ref.listen<EngineState>(stateProvider, (prev, next) {
       final title = next.track == null
-          ? 'Ol1nPlay'
-          : 'Ol1nPlay — ${next.track!.displayTitle}';
+          ? 'Elfton Player'
+          : 'Elfton Player — ${next.track!.displayTitle}';
       if (prev?.track?.path != next.track?.path ||
           prev?.playback != next.playback) {
         windowManager.setTitle(title).catchError((_) {});
@@ -78,7 +78,7 @@ class DesktopIntegration with TrayListener, WindowListener {
     final s = ref.read(stateProvider);
     try {
       await trayManager.setToolTip(
-        s.track == null ? 'Ol1nPlay' : s.track!.displayTitle,
+        s.track == null ? 'Elfton Player' : s.track!.displayTitle,
       );
       await trayManager.setContextMenu(
         Menu(

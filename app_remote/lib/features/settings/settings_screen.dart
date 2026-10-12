@@ -63,12 +63,58 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
           const _Section('Playback'),
           if (s != null) ...[
-            SwitchListTile(
-              secondary: const Icon(Icons.hearing),
-              title: const Text('Mono downmix'),
-              subtitle: const Text('(L+R)/2 – the only DSP, off by default'),
-              value: s.mono,
-              onChanged: (v) => ref.read(clientProvider).setMono(v),
+            ListTile(
+              leading: const Icon(Icons.hearing),
+              title: const Text('Channels'),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MonoModeSwitch(
+                      mode: s.monoMode,
+                      onChanged: (m) => ref.read(clientProvider).setMonoMode(m),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Mono is (L+R)/2 – the only DSP. L and R play it '
+                      'through one speaker, to compare the two sides.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dark_mode_outlined),
+              title: const Text('Appearance'),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SegmentedButton<String>(
+                    key: const ValueKey('themeSwitch'),
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    segments: const [
+                      ButtonSegment(value: 'system', label: Text('Auto')),
+                      ButtonSegment(value: 'dark', label: Text('Dark')),
+                      ButtonSegment(value: 'black', label: Text('Black')),
+                      ButtonSegment(value: 'light', label: Text('Light')),
+                    ],
+                    selected: {
+                      ref.watch(settingsProvider).value?.theme ?? 'system',
+                    },
+                    onSelectionChanged: (v) async {
+                      await ref.read(clientProvider).settingsSet({
+                        'theme': v.first,
+                      });
+                      ref.invalidate(settingsProvider);
+                    },
+                  ),
+                ),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.bedtime_outlined),

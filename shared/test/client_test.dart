@@ -41,7 +41,7 @@ void main() {
 
   test('hello with the right token connects and primes state', () async {
     final info = await client.connect(engine.wsUri, token: 'secret');
-    expect(info.name, contains('Ol1nPlay'));
+    expect(info.name, contains('Elfton Player'));
     expect(info.httpPort, engine.port);
     expect(client.status.value, ConnectionStatus.connected);
     expect(
@@ -108,6 +108,14 @@ void main() {
     await until((s) => s.isPaused, () => client.pause());
     await until((s) => s.isPlaying, () => client.toggle());
     await until((s) => s.mono, () => client.setMono(true));
+    final right = await until(
+      (s) => s.monoMode == MonoMode.right,
+      () => client.setMonoMode(MonoMode.right),
+    );
+    expect(right.mono, isTrue);
+    final wave = await client.waveform(right.waveform);
+    expect(wave.isEmpty, isFalse);
+    expect(wave.path, right.track!.path);
     await until((s) => s.positionMs >= 5000, () => client.seekMs(5000));
 
     final q = await client.queueGet();

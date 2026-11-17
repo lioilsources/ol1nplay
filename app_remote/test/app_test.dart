@@ -213,17 +213,17 @@ void main() {
 
   test('PairingInfo parses the desktop QR payload', () {
     final p = PairingInfo.parse(
-      'ol1nplay://192.168.1.20:7777/?token=abc123&http=7778&name=Studio%20PC',
+      'ol1nplay://192.168.1.20:7777/?token=abc123&http=7778&name=Studio%20PC', // devconv:allow-ip
     );
     expect(p, isNotNull);
-    expect(p!.host, '192.168.1.20');
+    expect(p!.host, '192.168.1.20'); // devconv:allow-ip
     expect(p.port, 7777);
     expect(p.token, 'abc123');
     expect(p.httpPort, 7778);
     expect(p.name, 'Studio PC');
-    expect(p.wsUri.toString(), 'ws://192.168.1.20:7777/ws');
+    expect(p.wsUri.toString(), 'ws://192.168.1.20:7777/ws'); // devconv:allow-ip
     final e = SavedEngine.fromPairing(p);
-    expect(e.id, '192.168.1.20:7777');
+    expect(e.id, '192.168.1.20:7777'); // devconv:allow-ip
     expect(SavedEngine.fromJson(e.toJson(), token: e.token).pairing, p);
     expect(PairingInfo.parse('https://example.com'), isNull);
   });

@@ -5,15 +5,15 @@ void main() {
   group('PairingInfo', () {
     test('parses the QR payload', () {
       final p = PairingInfo.parse(
-        'ol1nplay://192.168.1.20:7777/?token=abc123&http=7778&name=Studio',
+        'ol1nplay://192.168.1.20:7777/?token=abc123&http=7778&name=Studio', // devconv:allow-ip
       );
       expect(p, isNotNull);
-      expect(p!.host, '192.168.1.20');
+      expect(p!.host, '192.168.1.20'); // devconv:allow-ip
       expect(p.port, 7777);
       expect(p.token, 'abc123');
       expect(p.httpPort, 7778);
       expect(p.name, 'Studio');
-      expect(p.wsUri, Uri.parse('ws://192.168.1.20:7777/ws'));
+      expect(p.wsUri, Uri.parse('ws://192.168.1.20:7777/ws')); // devconv:allow-ip
     });
 
     test('defaults the port and tolerates whitespace', () {

@@ -222,7 +222,7 @@ void main() {
     expect(t.uri.toString(), 'ws://10.0.0.5:7777/ws');
     expect(t.token, 'abc');
     expect(t.local, isFalse);
-    final h = EngineTarget.fromOverride('192.168.1.2')!;
+    final h = EngineTarget.fromOverride('192.168.1.2')!; // devconv:allow-ip
     expect(h.uri.port, 7777);
     expect(h.uri.path, '/ws');
     final p = EngineTarget.fromOverride(

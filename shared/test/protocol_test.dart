@@ -101,7 +101,7 @@ const _stateJson = {
     'enabled': true,
     'port': 7777,
     'httpPort': 7778,
-    'addresses': ['192.168.1.20'],
+    'addresses': ['192.168.1.20'], // devconv:allow-ip
     'clients': 1,
     'mdns': true,
   },
@@ -168,7 +168,7 @@ void main() {
       expect(s.source.short, '24/96k');
       expect(s.ab.active, isTrue);
       expect(s.ab.bMs, 10000);
-      expect(s.remote.addresses, ['192.168.1.20']);
+      expect(s.remote.addresses, ['192.168.1.20']); // devconv:allow-ip
       expect(s.sysmode.template, hasLength(2));
       expect(s.progress, closeTo(4593 / 184000, 1e-9));
       expect(s.sleep, isNull);
